@@ -2,12 +2,17 @@ package main
 
 import (
 	"backend/database"
+	"backend/routers"
 	"fmt"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo"
 	"github.com/labstack/gommon/log"
 	"os"
 )
+
+var appRouters = []routers.Router{
+	&routers.MainRoute{},
+}
 
 func main() {
 	fmt.Println("Starting server...")
@@ -45,6 +50,7 @@ func main() {
 		e.Logger.Fatal(err)
 		return
 	}
+	routers.LoadRoutes(e, appRouters...)
 
 	addr := "0.0.0.0:" + os.Getenv("PORT")
 	e.Logger.Fatal(e.Start(addr))
