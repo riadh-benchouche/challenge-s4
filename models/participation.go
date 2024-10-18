@@ -1,19 +1,23 @@
 package models
 
 import (
-	"time"
-
+	"backend/enum"
 	"gorm.io/gorm"
+	"time"
 )
 
 type Participation struct {
 	gorm.Model
-	ID        string    `json:"id" gorm:"primaryKey"`
-	UserID    *uint     `json:"user_id" validate:"required"`
-	User      *User     `gorm:"foreignkey:UserID" json:"user"`
-	EventID   *uint     `json:"event_id"`
-	Event     *Event    `gorm:"foreignkey:EventID" json:"event,omitempty"`
-	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        string      `json:"id" gorm:"primaryKey"`
+	Status    enum.Status `json:"status" gorm:"default:pending" validate:"omitempty,oneof=pending present absent"`
+	CreatedAt time.Time   `json:"created_at"`
+	UpdatedAt time.Time   `json:"updated_at"`
+
+	// Foreign keys
+	UserID  *string `json:"user_id" validate:"required"`
+	EventID *string `json:"event_id"`
+
+	// Relationships
+	User  *User  `gorm:"foreignkey:UserID" json:"user"`
+	Event *Event `gorm:"foreignkey:EventID" json:"event,omitempty"`
 }

@@ -8,14 +8,18 @@ import (
 
 type Association struct {
 	gorm.Model
-	ID          string       `json:"id" gorm:"primaryKey"`
-	Name        string       `json:"name" gorm:"not null"`
-	Description string       `json:"description"`
-	UserID      uint         `json:"user_id" validate:"required"`
-	User        User         `gorm:"foreignkey:UserID" json:"user"`
-	CreatedAt   time.Time    `json:"created_at"`
-	UpdatedAt   time.Time    `json:"updated_at"`
-	Events      []Event      `gorm:"foreignKey:EventID"`
-	Messages    []Message    `gorm:"foreignKey:MessageID"`
-	Memberships []Membership `gorm:"foreignKey:MembershipID"`
+	ID          string    `json:"id" gorm:"primaryKey" validate:"required"`
+	Name        string    `json:"name" gorm:"not null"`
+	Description string    `json:"description"`
+	IsActive    bool      `json:"is_active" default:"false"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+
+	// Foreign keys
+	OwnerID string `json:"owner_id" validate:"required"`
+
+	// Relationships
+	Owner       User         `gorm:"foreignkey:OwnerID" json:"user"`
+	Memberships []Membership `gorm:"foreignKey:AssociationID"`
+	Messages    []Message    `gorm:"foreignKey:AssociationID"`
 }

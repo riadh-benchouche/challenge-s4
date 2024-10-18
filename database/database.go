@@ -1,6 +1,7 @@
 package database
 
 import (
+	"backend/models"
 	"fmt"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
@@ -23,6 +24,16 @@ type Config struct {
 	Password string
 	Name     string
 	SSLMode  string
+}
+
+var Models = []interface{}{
+	&models.User{},
+	&models.Association{},
+	&models.Membership{},
+	&models.Message{},
+	&models.Category{},
+	&models.Event{},
+	&models.Participation{},
 }
 
 type DB struct {
@@ -66,6 +77,14 @@ func (db *DB) CloseDB() {
 	if err != nil {
 		fmt.Println(err)
 	}
+}
+
+func (db *DB) AutoMigrate() error {
+	err := db.DB.AutoMigrate(Models...)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func InitDB() (*DB, error) {

@@ -39,6 +39,13 @@ func main() {
 	}
 	defer newDB.CloseDB()
 
+	// auto migrate database
+	err = newDB.AutoMigrate()
+	if err != nil {
+		e.Logger.Fatal(err)
+		return
+	}
+
 	addr := "0.0.0.0:" + os.Getenv("PORT")
 	e.Logger.Fatal(e.Start(addr))
 	fmt.Printf("Listening on %s\n", addr)

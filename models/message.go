@@ -10,33 +10,33 @@ type MessageType string
 
 type Message struct {
 	gorm.Model
-	ID            string      `json:"id" gorm:"primaryKey"`
-	Content       string      `json:"content" validate:"required,min=10,max=300"`
-	AssociationID uint        `json:"association_id" validate:"required"`
-	Association   Association `gorm:"foreignkey:AssociationID" json:"association"`
-	UserID        uint        `json:"user_id" validate:"required"`
-	User          User        `gorm:"foreignkey:UserID" json:"user"`
-	EventID       *uint       `json:"event_id"`
-	Event         *Event      `gorm:"foreignkey:EventID" json:"event,omitempty"`
-	CreatedAt     time.Time   `json:"created_at"`
+	ID        string    `json:"id" gorm:"primaryKey"`
+	Content   string    `json:"content" validate:"required,min=10,max=300"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// Foreign keys
+	AssociationID string `json:"association_id" validate:"required"`
+	SenderID      string `json:"sender_id" validate:"required"`
+
+	// Relationships
+	Association Association `gorm:"foreignkey:AssociationID" json:"association"`
+	Sender      User        `gorm:"foreignkey:SenderID" json:"user"`
 }
 
 type MessageCreate struct {
-	Content       string `json:"content" validate:"required,min=10,max=300"`
-	AssociationID uint   `json:"association_id" validate:"required"`
-	UserID        uint   `json:"-"`
-	EventID       *uint  `json:"event_id"`
+	Content       string `json:"content" validate:"required,min=1,max=300"`
+	AssociationID string `json:"association_id" validate:"required"`
+	SenderID      string `json:"sender_id" validate:"required"`
 }
 
 type MessageUpdate struct {
-	Content string `json:"content" validate:"required,min=10,max=300"`
+	Content string `json:"content" validate:"required,min=1,max=300"`
 }
 
 func (e MessageCreate) ToMessage() *Message {
 	return &Message{
 		Content:       e.Content,
 		AssociationID: e.AssociationID,
-		UserID:        e.UserID,
-		EventID:       e.EventID,
+		SenderID:      e.SenderID,
 	}
 }
