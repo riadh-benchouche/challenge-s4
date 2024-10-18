@@ -34,6 +34,7 @@ func (db *DB) Connect() error {
 	dbConnectionString := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		db.Config.Host, db.Config.Port, db.Config.User, db.Config.Password, db.Config.Name, db.Config.SSLMode)
 
+	fmt.Println("⏳ Waiting for database connection...")
 	var err error
 	db.DB, err = gorm.Open(postgres.Open(dbConnectionString), &gorm.Config{})
 	if err != nil {
@@ -50,10 +51,12 @@ func (db *DB) Connect() error {
 		return err
 	}
 
+	fmt.Println("🎉 Database connected!")
 	return nil
 }
 
 func (db *DB) Close() error {
+	fmt.Println("🚨Closing database connection...")
 	sqlDB, _ := db.DB.DB()
 	return sqlDB.Close()
 }
@@ -66,6 +69,7 @@ func (db *DB) CloseDB() {
 }
 
 func InitDB() (*DB, error) {
+	fmt.Println("🚀 Initializing database...")
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatalf("Error loading .env file")
