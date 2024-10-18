@@ -1,17 +1,10 @@
 package models
 
 import (
+	"backend/enum"
 	"time"
 
 	"gorm.io/gorm"
-)
-
-type Role string
-
-const (
-	RootRole  Role = "root"
-	AdminRole Role = "admin"
-	UserRole  Role = "user"
 )
 
 type User struct {
@@ -21,7 +14,7 @@ type User struct {
 	Email         string    `gorm:"uniqueIndex:idx_email_deleted_at" json:"email" validate:"email,required"`
 	Password      string    `json:"-"`
 	PlainPassword *string   `gorm:"-" json:"password,omitempty" validate:"required_without=Password,omitempty,min=8,max=72"`
-	Role          Role      `gorm:"default:user" json:"role" validate:"omitempty,oneof=admin user root"`
+	Role          enum.Role `gorm:"default:user" json:"role" validate:"omitempty,oneof=admin user root"`
 	IsActive      bool      `json:"is_active" gorm:"default:true"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
@@ -40,12 +33,4 @@ type UserLogin struct {
 
 type LoginResponse struct {
 	Token string `json:"token"`
-}
-
-func (user User) IsAdmin() bool {
-	return user.Role == AdminRole
-}
-
-func (user User) IsRoot() bool {
-	return user.Role == RootRole
 }
