@@ -5,13 +5,13 @@ import (
 	"backend/routers"
 	"fmt"
 	"github.com/joho/godotenv"
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
 	"os"
 )
 
 var appRouters = []routers.Router{
-	&routers.MainRoute{},
+	&routers.HelloRouter{},
 }
 
 func main() {
@@ -50,6 +50,7 @@ func main() {
 		e.Logger.Fatal(err)
 		return
 	}
+
 	routers.LoadRoutes(e, appRouters...)
 
 	addr := "0.0.0.0:" + os.Getenv("PORT")

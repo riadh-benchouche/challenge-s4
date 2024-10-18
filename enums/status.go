@@ -1,4 +1,4 @@
-package enum
+package enums
 
 // Status represents the status of a resource
 type Status string
