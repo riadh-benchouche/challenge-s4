@@ -14,14 +14,12 @@ import (
 	"github.com/labstack/gommon/log"
 )
 
-<<<<<<< HEAD
 var appRouters = []routers.Router{
 	&routers.HelloRouter{},
 	&routers.UserRouter{},
+	&routers.AuthRouter{},
 }
 
-=======
->>>>>>> bc7c8ab9d52a229eba99f33cd1b2e6df7f1bfa2e
 func main() {
 	fmt.Println("Starting server...")
 	err := godotenv.Load()
@@ -46,6 +44,8 @@ func main() {
 		e.Logger.Fatal(err)
 		return
 	}
+
+	routers.LoadRoutes(e, appRouters...)
 
 	// Chargement des routes avec AssociationController
 	associationService := services.NewAssociationService(newDB) // Service pour les associations

@@ -4,20 +4,17 @@ import (
 	"backend/database"
 	"backend/errors"
 	"backend/models"
-	"github.com/golang-jwt/jwt/v5"
-	"golang.org/x/crypto/bcrypt"
 	"os"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthService struct{}
 
 func NewAuthService() *AuthService {
 	return &AuthService{}
-}
-
-type LoginResponse struct {
-	Token string `json:"token"`
 }
 
 func (s *AuthService) HashPassword(password string) (string, error) {
@@ -30,24 +27,17 @@ func (s *AuthService) CheckPasswordHash(password, hash string) bool {
 	return err == nil
 }
 
-func (s *AuthService) ValidateToken(tokenString string) (*jwt.Token, error) {
-	jwtSecret, ok := os.LookupEnv("JWT_KEY")
-	if !ok {
-		return nil, errors.ErrInternal
-	}
-
-	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		return []byte(jwtSecret), nil
-	})
+type LoginResponse struct {
+	Token string `json:"token"`
 }
 
 func (s *AuthService) Login(email, password string) (*LoginResponse, error) {
 	var targetUser models.User
 	database.CurrentDatabase.Where("email = ?", email).First(&targetUser)
 
-	// if targetUser.ID == 0 {
-	// 	return nil, errors.ErrInvalidCredentials
-	// }
+	if targetUser.ID == "" {
+		return nil, errors.ErrInvalidCredentials
+	}
 
 	if !s.CheckPasswordHash(password, targetUser.Password) {
 		return nil, errors.ErrInvalidCredentials
@@ -64,8 +54,8 @@ func (s *AuthService) Login(email, password string) (*LoginResponse, error) {
 			"name":  targetUser.Name,
 			"email": targetUser.Email,
 			"role":  targetUser.Role,
+			"exp":   time.Now().Add(4 * time.Hour).Unix(),
 			"iat":   time.Now().Unix(),
-			"exp":   time.Now().Add(6 * time.Hour).Unix(),
 		},
 	)
 
@@ -75,4 +65,15 @@ func (s *AuthService) Login(email, password string) (*LoginResponse, error) {
 	}
 
 	return &LoginResponse{Token: token}, nil
+}
+
+func (s *AuthService) ValidateToken(tokenString string) (*jwt.Token, error) {
+	jwtSecret, ok := os.LookupEnv("JWT_KEY")
+	if !ok {
+		return nil, errors.ErrInternal
+	}
+
+	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return []byte(jwtSecret), nil
+	})
 }

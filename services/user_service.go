@@ -25,7 +25,7 @@ func (s *UserService) AddUser(user models.User) (*models.User, error) {
 
 	var existingUser models.User
 	database.CurrentDatabase.Where("email = ?", user.Email).First(&existingUser)
-	if existingUser.ID != 0 {
+	if existingUser.ID != "" {
 		return nil, errors.ErrUserAlreadyExists
 	}
 
@@ -68,60 +68,55 @@ func (s *UserService) GetUsers(pagination utils.Pagination, search *string) (*ut
 	return &pagination, nil
 }
 
-// func (s *UserService) DeleteUser(id uint) error {
-// 	user := models.User{}
-// 	database.CurrentDatabase.First(&user, id)
-// 	if user.ID == "" {
-// 		return errors.ErrNotFound
-// 	}
+func (s *UserService) DeleteUser(id string) error {
+	var user models.User
+	if err := database.CurrentDatabase.Where("id = ?", id).First(&user).Error; err != nil {
+		return errors.ErrNotFound
+	}
+	if err := database.CurrentDatabase.Delete(&user).Error; err != nil {
+		return err
+	}
+	return nil
+}
 
-// 	err := database.CurrentDatabase.Delete(&user).Error
-// 	if err != nil {
-// 		return err
-// 	}
+func (s *UserService) FindByID(id string) (*models.User, error) {
+	var user models.User
+	result := database.CurrentDatabase.First(&user, "id = ?", id) // Rechercher l'utilisateur par ULID
+	if result.Error != nil {
+		return nil, errors.ErrNotFound
+	}
 
-// 	return nil
-// }
+	return &user, nil
+}
 
-// func (s *UserService) UpdateUser(id uint, user models.User) (*models.User, error) {
-// 	validate := validator.New(validator.WithRequiredStructEnabled())
-// 	err := validate.Struct(user)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+func (s *UserService) UpdateUser(id string, user models.User) (*models.User, error) {
+	validate := validator.New(validator.WithRequiredStructEnabled())
+	err := validate.Struct(user)
+	if err != nil {
+		return nil, err
+	}
 
-// 	// check if user exists if changed email
-// 	var existingUser models.User
-// 	database.CurrentDatabase.Where("email = ?", user.Email).First(&existingUser)
-// 	if existingUser.ID != 0 && existingUser.ID != id {
-// 		return nil, errors.ErrUserAlreadyExists
-// 	}
+	var existingUser models.User
+	database.CurrentDatabase.Where("email = ?", user.Email).First(&existingUser)
+	if existingUser.ID != "" && existingUser.ID != id {
+		return nil, errors.ErrUserAlreadyExists
+	}
 
-// 	if user.PlainPassword != nil {
-// 		user.Password, err = NewSecurityService().HashPassword(*user.PlainPassword)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		user.PlainPassword = nil
-// 	}
+	if user.PlainPassword != nil {
+		user.Password, err = NewAuthService().HashPassword(*user.PlainPassword)
+		if err != nil {
+			return nil, err
+		}
+		user.PlainPassword = nil
+	}
 
-// 	err = database.CurrentDatabase.Save(&user).Error
-// 	if err != nil {
-// 		return nil, err
-// 	}
+	err = database.CurrentDatabase.Model(&models.User{}).Where("id = ?", id).Updates(&user).Error
+	if err != nil {
+		return nil, err
+	}
 
-// 	return &user, nil
-// }
-
-// func (s *UserService) FindByID(id uint) (*models.User, error) {
-// 	var user models.User
-// 	database.CurrentDatabase.First(&user, id)
-// 	if user.ID == 0 {
-// 		return nil, errors.ErrNotFound
-// 	}
-
-// 	return &user, nil
-// }
+	return &user, nil
+}
 
 // func (s *UserService) GetUserEvents(userID uint, pagination utils.Pagination) (*utils.Pagination, error) {
 // 	var events []models.Event
