@@ -4,14 +4,16 @@ import (
 	"backend/database"
 	"backend/routers"
 	"fmt"
+	"os"
+
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
-	"os"
 )
 
 var appRouters = []routers.Router{
 	&routers.HelloRouter{},
+	&routers.UserRouter{},
 }
 
 func main() {

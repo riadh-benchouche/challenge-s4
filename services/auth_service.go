@@ -2,6 +2,7 @@ package services
 
 import (
 	"backend/database"
+	"backend/errors"
 	"backend/models"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -19,7 +20,7 @@ type LoginResponse struct {
 	Token string `json:"token"`
 }
 
-func (s *AuthService) HashPassword(password struing) (string, error) {
+func (s *AuthService) HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 6)
 	return string(bytes), err
 }
@@ -44,9 +45,9 @@ func (s *AuthService) Login(email, password string) (*LoginResponse, error) {
 	var targetUser models.User
 	database.CurrentDatabase.Where("email = ?", email).First(&targetUser)
 
-	if targetUser.ID == 0 {
-		return nil, errors.ErrInvalidCredentials
-	}
+	// if targetUser.ID == 0 {
+	// 	return nil, errors.ErrInvalidCredentials
+	// }
 
 	if !s.CheckPasswordHash(password, targetUser.Password) {
 		return nil, errors.ErrInvalidCredentials

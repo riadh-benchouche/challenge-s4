@@ -9,7 +9,7 @@ func NewHomeService() *HomeService {
 }
 
 func (s *HomeService) GetHelloMessage() string {
-	return "Welcome to our API!"
+	return "Welcome to our API V2!"
 }
 
 func (s *HomeService) GetHelloUserMessage(user models.User) string {

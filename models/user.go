@@ -9,7 +9,6 @@ import (
 
 type User struct {
 	gorm.Model
-	ID            string     `json:"id" gorm:"primaryKey" validate:"required"`
 	Name          string     `json:"name" validate:"required,min=2,max=50"`
 	Email         string     `gorm:"uniqueIndex:idx_email_deleted_at" json:"email" validate:"email,required"`
 	Password      string     `json:"-"`
