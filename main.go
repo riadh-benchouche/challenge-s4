@@ -1,21 +1,27 @@
 package main
 
 import (
+	"backend/controllers"
 	"backend/database"
 	"backend/routers"
+	"backend/services"
 	"fmt"
 	"os"
 
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
 )
 
+<<<<<<< HEAD
 var appRouters = []routers.Router{
 	&routers.HelloRouter{},
 	&routers.UserRouter{},
 }
 
+=======
+>>>>>>> bc7c8ab9d52a229eba99f33cd1b2e6df7f1bfa2e
 func main() {
 	fmt.Println("Starting server...")
 	err := godotenv.Load()
@@ -26,36 +32,28 @@ func main() {
 	e := echo.New()
 	e.Logger.SetLevel(log.DEBUG)
 
-	fmt.Printf("APP_MODE: %s\n", os.Getenv("ENVIRONMENT"))
-	if os.Getenv("ENVIRONMENT") == "development" {
-		e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
-			return func(c echo.Context) error {
-				c.Response().Header().Set("Access-Control-Allow-Origin", "*")
-				c.Response().Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE")
-				c.Response().Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-				return next(c)
-			}
-		})
-	}
+	// Middleware CORS
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"*"},
+		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},
+	}))
 
-	// init database
+	fmt.Printf("APP_MODE: %s\n", os.Getenv("ENVIRONMENT"))
+
+	// Initialisation de la base de données
 	newDB, err := database.InitDB()
 	if err != nil {
 		e.Logger.Fatal(err)
 		return
 	}
-	defer newDB.CloseDB()
 
-	// auto migrate database
-	err = newDB.AutoMigrate()
-	if err != nil {
-		e.Logger.Fatal(err)
-		return
-	}
+	// Chargement des routes avec AssociationController
+	associationService := services.NewAssociationService(newDB) // Service pour les associations
+	associationController := controllers.NewAssociationController(associationService)
+	routers.SetupAssociationRoutes(e, associationController) // Charger les routes de l'association
 
-	routers.LoadRoutes(e, appRouters...)
-
-	addr := "0.0.0.0:" + os.Getenv("PORT")
+	// Démarrer le serveur
+	addr := "0.0.0.0:3000" // Port fixe pour éviter d'utiliser une variable d'environnement ici
 	e.Logger.Fatal(e.Start(addr))
 	fmt.Printf("Listening on %s\n", addr)
 }

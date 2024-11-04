@@ -3,11 +3,12 @@ package database
 import (
 	"backend/models"
 	"fmt"
+	"log"
+	"os"
+
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"log"
-	"os"
 )
 
 var CurrentDatabase *gorm.DB
@@ -36,65 +37,16 @@ var Models = []interface{}{
 	&models.Participation{},
 }
 
-type DB struct {
-	DB     *gorm.DB
-	Config Config
-}
-
-func (db *DB) Connect() error {
-	dbConnectionString := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		db.Config.Host, db.Config.Port, db.Config.User, db.Config.Password, db.Config.Name, db.Config.SSLMode)
-
-	fmt.Println("⏳ Waiting for database connection...")
-	var err error
-	db.DB, err = gorm.Open(postgres.Open(dbConnectionString), &gorm.Config{})
-	if err != nil {
-		return err
-	}
-
-	sqlDB, err := db.DB.DB()
-	if err != nil {
-		return err
-	}
-
-	err = sqlDB.Ping()
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("🎉 Database connected!")
-	return nil
-}
-
-func (db *DB) Close() error {
-	fmt.Println("🚨Closing database connection...")
-	sqlDB, _ := db.DB.DB()
-	return sqlDB.Close()
-}
-
-func (db *DB) CloseDB() {
-	err := db.Close()
-	if err != nil {
-		fmt.Println(err)
-	}
-}
-
-func (db *DB) AutoMigrate() error {
-	err := db.DB.AutoMigrate(Models...)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func InitDB() (*DB, error) {
+// InitDB initialise la base de données et effectue la migration
+func InitDB() (*gorm.DB, error) {
 	fmt.Println("🚀 Initializing database...")
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatalf("Error loading .env file")
 	}
 
-	var DefaultConfig = Config{
+	// Configuration de la base de données
+	config := Config{
 		Host:     os.Getenv("POSTGRES_HOST"),
 		User:     os.Getenv("POSTGRES_USER"),
 		Password: os.Getenv("POSTGRES_PASSWORD"),
@@ -103,13 +55,50 @@ func InitDB() (*DB, error) {
 		SSLMode:  "disable",
 	}
 
-	newDB := DB{Config: DefaultConfig}
+	// Chaîne de connexion
+	dbConnectionString := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		config.Host, config.Port, config.User, config.Password, config.Name, config.SSLMode)
 
-	errorConnection := newDB.Connect()
-	if errorConnection != nil {
+	// Connexion à la base de données
+	fmt.Println("⏳ Waiting for database connection...")
+	db, err := gorm.Open(postgres.Open(dbConnectionString), &gorm.Config{})
+	if err != nil {
 		return nil, err
 	}
 
-	CurrentDatabase = newDB.DB
-	return &newDB, nil
+	// Vérifier la connexion
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, err
+	}
+
+	err = sqlDB.Ping()
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println("🎉 Database connected!")
+
+	// Migrer les modèles
+	err = db.AutoMigrate(Models...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Stocker la base de données actuelle dans CurrentDatabase
+	CurrentDatabase = db
+	return db, nil
+}
+
+// CloseDB ferme la connexion à la base de données
+func CloseDB(db *gorm.DB) {
+	fmt.Println("🚨 Closing database connection...")
+	sqlDB, err := db.DB()
+	if err != nil {
+		fmt.Println("Error obtaining DB:", err)
+		return
+	}
+	if err := sqlDB.Close(); err != nil {
+		fmt.Println("Error closing DB:", err)
+	}
 }
