@@ -19,7 +19,7 @@ type Association struct {
 	OwnerID string `json:"owner_id" validate:"required"`
 
 	// Relationships
-	Owner       User         `gorm:"foreignkey:OwnerID" json:"user"`
-	Memberships []Membership `gorm:"foreignKey:AssociationID"`
-	Messages    []Message    `gorm:"foreignKey:AssociationID"`
+	Owner    User      `gorm:"foreignKey:OwnerID" json:"owner"`
+	Members  []User    `gorm:"many2many:memberships;joinForeignKey:AssociationID;joinReferences:UserID" json:"members"`
+	Messages []Message `gorm:"foreignKey:AssociationID"`
 }

@@ -2,10 +2,13 @@ package services
 
 import (
 	"backend/database"
+	"backend/enums"
 	"backend/errors"
 	"backend/models"
+	"backend/resources"
 	"backend/utils"
 	"strconv"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -63,8 +66,12 @@ func (s *UserService) GetUsers(pagination utils.Pagination, search *string) (*ut
 		return nil, err
 	}
 
-	pagination.Rows = users
+	var userResources []resources.UserResource
+	for _, user := range users {
+		userResources = append(userResources, resources.NewUserResource(user))
+	}
 
+	pagination.Rows = userResources
 	return &pagination, nil
 }
 
@@ -81,7 +88,11 @@ func (s *UserService) DeleteUser(id string) error {
 
 func (s *UserService) FindByID(id string) (*models.User, error) {
 	var user models.User
-	result := database.CurrentDatabase.First(&user, "id = ?", id) // Rechercher l'utilisateur par ULID
+	result := database.CurrentDatabase.
+		Preload("AssociationsOwned").
+		Preload("Memberships").
+		Preload("Associations").
+		First(&user, "id = ?", id)
 	if result.Error != nil {
 		return nil, errors.ErrNotFound
 	}
@@ -116,6 +127,32 @@ func (s *UserService) UpdateUser(id string, user models.User) (*models.User, err
 	}
 
 	return &user, nil
+}
+
+func (s *UserService) JoinAssociation(userID string, associationID string) error {
+	var user models.User
+	if err := database.CurrentDatabase.Where("id = ?", userID).First(&user).Error; err != nil {
+		return errors.ErrNotFound
+	}
+
+	var association models.Association
+	if err := database.CurrentDatabase.Where("id = ?", associationID).First(&association).Error; err != nil {
+		return errors.ErrNotFound
+	}
+
+	var membership models.Membership
+	if err := database.CurrentDatabase.Where("user_id = ? AND association_id = ?", userID, associationID).First(&membership).Error; err == nil {
+		return errors.ErrAlreadyJoined
+	}
+
+	membership = models.Membership{
+		UserID:        user.ID,
+		AssociationID: association.ID,
+		JoinedAt:      time.Now(),
+		Status:        enums.Pending,
+	}
+
+	return database.CurrentDatabase.Create(&membership).Error
 }
 
 // func (s *UserService) GetUserEvents(userID uint, pagination utils.Pagination) (*utils.Pagination, error) {

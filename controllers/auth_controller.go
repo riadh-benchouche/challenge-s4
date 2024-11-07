@@ -1,7 +1,10 @@
 package controllers
 
 import (
+	"backend/database"
 	coreErrors "backend/errors"
+	"backend/models"
+	"backend/requests"
 	"backend/services"
 	"backend/utils"
 	"encoding/json"
@@ -23,10 +26,7 @@ func NewAuthController() *AuthController {
 }
 
 func (c *AuthController) Login(ctx echo.Context) error {
-	var jsonBody struct {
-		Email    string `json:"email" validate:"required,email"`
-		Password string `json:"password" validate:"required,min=8,max=72"`
-	}
+	var jsonBody requests.LoginRequest
 	err := json.NewDecoder(ctx.Request().Body).Decode(&jsonBody)
 	if err != nil {
 		return ctx.NoContent(http.StatusBadRequest)
@@ -49,4 +49,33 @@ func (c *AuthController) Login(ctx echo.Context) error {
 	}
 
 	return ctx.JSON(http.StatusOK, result)
+}
+
+func (c *AuthController) Register(ctx echo.Context) error {
+	var jsonBody requests.RegisterRequest
+	err := json.NewDecoder(ctx.Request().Body).Decode(&jsonBody)
+	if err != nil {
+		return ctx.NoContent(http.StatusBadRequest)
+	}
+
+	validate := validator.New(validator.WithRequiredStructEnabled())
+	err = validate.Struct(jsonBody)
+	if err != nil {
+		validationErrors := utils.GetValidationErrors(err.(validator.ValidationErrors), jsonBody)
+		return ctx.JSON(http.StatusUnprocessableEntity, validationErrors)
+	}
+
+	var existingUser models.User
+	database.CurrentDatabase.Where("email = ?", jsonBody.Email).First(&existingUser)
+	if existingUser.ID != "" {
+		return ctx.String(http.StatusConflict, "Email already used")
+	}
+
+	result, err := c.authService.Register(jsonBody)
+	if err != nil {
+		ctx.Logger().Error(err)
+		return ctx.NoContent(http.StatusInternalServerError)
+	}
+
+	return ctx.JSON(http.StatusCreated, result)
 }

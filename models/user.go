@@ -9,7 +9,7 @@ import (
 
 type User struct {
 	gorm.Model
-	ID            string     `json:"id" gorm:"primaryKey" validate:"-"`
+	ID            string     `json:"id" gorm:"primaryKey" validate:"required"`
 	Name          string     `json:"name" validate:"required,min=2,max=50"`
 	Email         string     `gorm:"uniqueIndex:idx_email_deleted_at" json:"email" validate:"email,required"`
 	Password      string     `json:"-"`
@@ -20,17 +20,9 @@ type User struct {
 	UpdatedAt     time.Time  `json:"updated_at"`
 
 	// Relationships
-	Associations  []Association   `json:"associations" gorm:"foreignKey:OwnerID"`
-	Memberships   []Membership    `json:"memberships" gorm:"foreignKey:UserID"`
-	Messages      []Message       `json:"messages" gorm:"foreignKey:SenderID"`
-	Participation []Participation `json:"participation" gorm:"foreignKey:UserID"`
-}
-
-type UserLogin struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=8,max=72"`
-}
-
-type LoginResponse struct {
-	Token string `json:"token"`
+	AssociationsOwned []Association   `json:"associations_owned" gorm:"foreignKey:OwnerID"`
+	Memberships       []Membership    `json:"memberships" gorm:"foreignKey:UserID"`
+	Associations      []Association   `gorm:"many2many:memberships;joinForeignKey:UserID;joinReferences:AssociationID" json:"associations"`
+	Messages          []Message       `json:"messages" gorm:"foreignKey:SenderID"`
+	Participation     []Participation `json:"participation" gorm:"foreignKey:UserID"`
 }

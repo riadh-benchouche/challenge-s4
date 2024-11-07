@@ -4,6 +4,9 @@ import (
 	"backend/database"
 	"backend/errors"
 	"backend/models"
+	"backend/requests"
+	"backend/resources"
+	"backend/utils"
 	"os"
 	"time"
 
@@ -29,6 +32,11 @@ func (s *AuthService) CheckPasswordHash(password, hash string) bool {
 
 type LoginResponse struct {
 	Token string `json:"token"`
+}
+
+type RegisterResponse struct {
+	User  resources.UserResource `json:"user"`
+	Token string                 `json:"token"`
 }
 
 func (s *AuthService) Login(email, password string) (*LoginResponse, error) {
@@ -65,6 +73,41 @@ func (s *AuthService) Login(email, password string) (*LoginResponse, error) {
 	}
 
 	return &LoginResponse{Token: token}, nil
+}
+
+func (s *AuthService) Register(Request requests.RegisterRequest) (*RegisterResponse, error) {
+	hashedPassword, err := s.HashPassword(Request.Password)
+	if err != nil {
+		return nil, errors.ErrInternal
+	}
+
+	newUser := models.User{
+		ID:       utils.GenerateULID(),
+		Name:     Request.Name,
+		Email:    Request.Email,
+		Password: hashedPassword,
+		Role:     "user",
+	}
+
+	database.CurrentDatabase.Create(&newUser)
+	jwtSecret, ok := os.LookupEnv("JWT_KEY")
+	if !ok {
+		return nil, errors.ErrInternal
+	}
+
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"id":    newUser.ID,
+		"email": newUser.Email,
+		"exp":   time.Now().Add(4 * time.Hour).Unix(),
+		"iat":   time.Now().Unix(),
+	}).SignedString([]byte(jwtSecret))
+
+	if err != nil {
+		return nil, errors.ErrInternal
+	}
+
+	userResource := resources.NewUserResource(newUser)
+	return &RegisterResponse{User: userResource, Token: token}, nil
 }
 
 func (s *AuthService) ValidateToken(tokenString string) (*jwt.Token, error) {

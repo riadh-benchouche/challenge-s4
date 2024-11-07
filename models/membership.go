@@ -2,9 +2,8 @@ package models
 
 import (
 	"backend/enums"
-	"time"
-
 	"gorm.io/gorm"
+	"time"
 )
 
 type Membership struct {
@@ -19,6 +18,6 @@ type Membership struct {
 	AssociationID string `json:"association_id" validate:"required"`
 
 	// Relationships
-	User        User        `gorm:"foreignkey:UserID" json:"user"`
-	Association Association `gorm:"foreignkey:AssociationID" json:"association"`
+	User        User        `gorm:"foreignKey:UserID" json:"user"`
+	Association Association `gorm:"foreignKey:AssociationID" json:"association"`
 }

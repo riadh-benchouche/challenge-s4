@@ -4,17 +4,15 @@ import (
 	"backend/enums"
 	coreErrors "backend/errors"
 	"backend/models"
+	"backend/resources"
 	"backend/services"
 	"backend/utils"
 	"encoding/json"
 	"errors"
-	"math/rand"
-	"net/http"
-	"time"
-
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"github.com/oklog/ulid/v2"
+	"net/http"
 )
 
 type UserController struct {
@@ -34,7 +32,7 @@ func (c *UserController) CreateUser(ctx echo.Context) error {
 		return ctx.NoContent(http.StatusBadRequest)
 	}
 
-	jsonBody.ID = ulid.MustNew(ulid.Timestamp(time.Now()), rand.New(rand.NewSource(time.Now().UnixNano()))).String()
+	jsonBody.ID = utils.GenerateULID()
 
 	if _, err := ulid.Parse(jsonBody.ID); err != nil {
 		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid ULID format"})
@@ -117,7 +115,8 @@ func (c *UserController) FindByID(ctx echo.Context) error {
 		return ctx.NoContent(http.StatusInternalServerError)
 	}
 
-	return ctx.JSON(http.StatusOK, user)
+	userResource := resources.NewUserResource(*user)
+	return ctx.JSON(http.StatusOK, userResource)
 }
 
 func (c *UserController) UpdateUser(ctx echo.Context) error {
@@ -180,4 +179,77 @@ func (c *UserController) UpdateUser(ctx echo.Context) error {
 	}
 
 	return ctx.JSON(http.StatusOK, updatedUser)
+}
+
+func (c *UserController) GetOwnerAssociations(ctx echo.Context) error {
+	id := ctx.Param("id")
+	if _, err := ulid.Parse(id); err != nil {
+		return ctx.NoContent(http.StatusBadRequest)
+	}
+
+	user, err := c.UserService.FindByID(id)
+
+	if err != nil {
+		return ctx.NoContent(http.StatusNotFound)
+	}
+
+	associations := user.AssociationsOwned
+
+	associationResources := make([]resources.AssociationResource, len(associations))
+	for i, association := range associations {
+		associationResources[i] = resources.NewAssociationResource(association)
+	}
+
+	return ctx.JSON(http.StatusOK, associationResources)
+}
+
+func (c *UserController) GetUserAssociations(ctx echo.Context) error {
+	id := ctx.Param("id")
+	if _, err := ulid.Parse(id); err != nil {
+		return ctx.NoContent(http.StatusBadRequest)
+	}
+
+	user, err := c.UserService.FindByID(id)
+
+	if err != nil {
+		return ctx.NoContent(http.StatusNotFound)
+	}
+
+	associations := user.Associations
+
+	associationResources := make([]resources.AssociationResource, len(associations))
+	for i, association := range associations {
+		associationResources[i] = resources.NewAssociationResource(association)
+	}
+
+	return ctx.JSON(http.StatusOK, associationResources)
+}
+
+func (c *UserController) JoinAssociation(ctx echo.Context) error {
+	userId := ctx.Param("id")
+	associationId := ctx.Param("association_id")
+
+	if _, err := ulid.Parse(userId); err != nil {
+		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid ULID format"})
+	}
+
+	if _, err := ulid.Parse(associationId); err != nil {
+		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid ULID format"})
+	}
+
+	err := c.UserService.JoinAssociation(userId, associationId)
+	if err != nil {
+		if errors.Is(err, coreErrors.ErrNotFound) {
+			return ctx.JSON(http.StatusNotFound, map[string]string{"error": coreErrors.ErrNotFound.Error()})
+		}
+
+		if errors.Is(err, coreErrors.ErrAlreadyJoined) {
+			return ctx.JSON(http.StatusConflict, map[string]string{"error": coreErrors.ErrAlreadyJoined.Error()})
+		}
+
+		ctx.Logger().Error(err)
+		return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": coreErrors.ErrInternal.Error()})
+	}
+
+	return ctx.NoContent(http.StatusNoContent)
 }
