@@ -129,30 +129,31 @@ func (s *UserService) UpdateUser(id string, user models.User) (*models.User, err
 	return &user, nil
 }
 
-func (s *UserService) JoinAssociation(userID string, associationID string) error {
-	var user models.User
-	if err := database.CurrentDatabase.Where("id = ?", userID).First(&user).Error; err != nil {
-		return errors.ErrNotFound
+func (s *UserService) JoinAssociation(userID, associationID string) (bool, error) {
+	if err := database.CurrentDatabase.First(&models.User{}, "id = ?", userID).Error; err != nil {
+		return false, errors.ErrNotFound
 	}
-
-	var association models.Association
-	if err := database.CurrentDatabase.Where("id = ?", associationID).First(&association).Error; err != nil {
-		return errors.ErrNotFound
+	if err := database.CurrentDatabase.First(&models.Association{}, "id = ?", associationID).Error; err != nil {
+		return false, errors.ErrNotFound
 	}
 
 	var membership models.Membership
 	if err := database.CurrentDatabase.Where("user_id = ? AND association_id = ?", userID, associationID).First(&membership).Error; err == nil {
-		return errors.ErrAlreadyJoined
+		return false, errors.ErrAlreadyJoined
 	}
 
-	membership = models.Membership{
-		UserID:        user.ID,
-		AssociationID: association.ID,
+	newMembership := models.Membership{
+		UserID:        userID,
+		AssociationID: associationID,
 		JoinedAt:      time.Now(),
 		Status:        enums.Pending,
 	}
 
-	return database.CurrentDatabase.Create(&membership).Error
+	if err := database.CurrentDatabase.Create(&newMembership).Error; err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 // func (s *UserService) GetUserEvents(userID uint, pagination utils.Pagination) (*utils.Pagination, error) {

@@ -6,7 +6,6 @@ import (
 )
 
 type MembershipResource struct {
-	ID            string              `json:"id"`
 	JoinedAt      string              `json:"joined_at"`
 	Status        string              `json:"status"`
 	Note          string              `json:"note"`
@@ -18,7 +17,6 @@ type MembershipResource struct {
 
 func NewMembershipResource(membership models.Membership) MembershipResource {
 	return MembershipResource{
-		ID:            membership.ID,
 		JoinedAt:      membership.JoinedAt.Format(time.RFC3339),
 		Status:        string(membership.Status),
 		Note:          membership.Note,

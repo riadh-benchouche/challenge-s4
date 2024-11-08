@@ -1,10 +1,8 @@
 package main
 
 import (
-	"backend/controllers"
 	"backend/database"
 	"backend/routers"
-	"backend/services"
 	"fmt"
 	"os"
 
@@ -18,6 +16,7 @@ var appRouters = []routers.Router{
 	&routers.HelloRouter{},
 	&routers.UserRouter{},
 	&routers.AuthRouter{},
+	&routers.AssociationRouter{},
 }
 
 func main() {
@@ -44,16 +43,16 @@ func main() {
 		e.Logger.Fatal(err)
 		return
 	}
+	defer database.CloseDB(newDB)
 
+	err = newDB.AutoMigrate()
+	if err != nil {
+		e.Logger.Fatal(err)
+		return
+	}
 	routers.LoadRoutes(e, appRouters...)
 
-	// Chargement des routes avec AssociationController
-	associationService := services.NewAssociationService(newDB) // Service pour les associations
-	associationController := controllers.NewAssociationController(associationService)
-	routers.SetupAssociationRoutes(e, associationController) // Charger les routes de l'association
-
-	// Démarrer le serveur
-	addr := "0.0.0.0:3000" // Port fixe pour éviter d'utiliser une variable d'environnement ici
+	addr := "0.0.0.0:3000"
 	e.Logger.Fatal(e.Start(addr))
 	fmt.Printf("Listening on %s\n", addr)
 }

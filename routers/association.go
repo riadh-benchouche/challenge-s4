@@ -2,17 +2,23 @@ package routers
 
 import (
 	"backend/controllers"
+	"backend/enums"
+	"backend/middlewares"
 
 	"github.com/labstack/echo/v4"
 )
 
-func SetupAssociationRoutes(e *echo.Echo, controller *controllers.AssociationController) {
+type AssociationRouter struct{}
 
-	api := e.Group("/api")
+func (r *AssociationRouter) SetupRoutes(e *echo.Echo) {
+	associationController := controllers.NewAssociationController()
 
-	api.POST("/associations", controller.Create)
-	api.GET("/associations", controller.GetAll)
-	api.GET("/associations/:id", controller.GetByID)
-	api.PUT("/associations/:id", controller.Update)
-	api.DELETE("/associations/:id", controller.Delete)
+	group := e.Group("/associations")
+
+	// group.GET("", groupController.GetAllMyGroups, middlewares.AuthenticationMiddleware())
+	group.GET("/all", associationController.GetAllAssociations, middlewares.AuthenticationMiddleware(enums.AdminRole))
+	group.GET("/:associationId", associationController.GetAssociationById, middlewares.AuthenticationMiddleware(), middlewares.AssociationMembershipMiddleware)
+	group.POST("", associationController.CreateAssociation, middlewares.AuthenticationMiddleware())
+	// group.GET("/:groupId/next-event", groupController.GetNextEvent, middlewares.AuthenticationMiddleware(), middlewares.GroupMembershipMiddleware)
+	// group.GET("/:groupId/events", groupController.GetGroupEvents, middlewares.AuthenticationMiddleware(), middlewares.GroupMembershipMiddleware)
 }

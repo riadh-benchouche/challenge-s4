@@ -9,10 +9,11 @@ import (
 	"backend/utils"
 	"encoding/json"
 	"errors"
+	"net/http"
+
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"github.com/oklog/ulid/v2"
-	"net/http"
 )
 
 type UserController struct {
@@ -226,29 +227,25 @@ func (c *UserController) GetUserAssociations(ctx echo.Context) error {
 }
 
 func (c *UserController) JoinAssociation(ctx echo.Context) error {
-	userId := ctx.Param("id")
-	associationId := ctx.Param("association_id")
+	userID := ctx.Param("id")
+	associationID := ctx.Param("association_id")
 
-	if _, err := ulid.Parse(userId); err != nil {
-		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid ULID format"})
+	if _, err := ulid.Parse(userID); err != nil {
+		return ctx.JSON(http.StatusBadRequest, coreErrors.ErrInvalidULIDFormat)
 	}
 
-	if _, err := ulid.Parse(associationId); err != nil {
-		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid ULID format"})
+	if _, err := ulid.Parse(associationID); err != nil {
+		return ctx.JSON(http.StatusBadRequest, coreErrors.ErrInvalidULIDFormat)
 	}
 
-	err := c.UserService.JoinAssociation(userId, associationId)
-	if err != nil {
-		if errors.Is(err, coreErrors.ErrNotFound) {
-			return ctx.JSON(http.StatusNotFound, map[string]string{"error": coreErrors.ErrNotFound.Error()})
-		}
-
-		if errors.Is(err, coreErrors.ErrAlreadyJoined) {
-			return ctx.JSON(http.StatusConflict, map[string]string{"error": coreErrors.ErrAlreadyJoined.Error()})
-		}
-
+	if hasJoined, err := c.UserService.JoinAssociation(userID, associationID); err != nil {
 		ctx.Logger().Error(err)
-		return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": coreErrors.ErrInternal.Error()})
+		if errors.Is(err, coreErrors.ErrAlreadyJoined) {
+			return ctx.JSON(http.StatusConflict, map[string]string{"error": "User already joined"})
+		}
+		return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	} else if hasJoined {
+		return ctx.JSON(http.StatusCreated, "User successfully joined the association")
 	}
 
 	return ctx.NoContent(http.StatusNoContent)
