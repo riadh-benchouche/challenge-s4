@@ -3,72 +3,55 @@ package controllers
 import (
 	"backend/models"
 	"backend/services"
+	"backend/utils"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/oklog/ulid/v2"
 )
 
 type CategoryController struct {
-	service *services.CategoryService
+	CategoryService *services.CategoryService
 }
 
-func NewCategoryController(service *services.CategoryService) *CategoryController {
-	return &CategoryController{service: service}
+func NewCategoryController() *CategoryController {
+	return &CategoryController{
+		CategoryService: services.NewCategoryService(),
+	}
 }
 
-// Create crée une nouvelle catégorie
-func (c *CategoryController) Create(ctx echo.Context) error {
-	category := new(models.Category)
-	if err := ctx.Bind(category); err != nil {
-		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+func (c *CategoryController) CreateCategory(ctx echo.Context) error {
+	var category models.Category
+	if err := ctx.Bind(&category); err != nil {
+		return ctx.JSON(http.StatusBadRequest, "Données de catégorie invalides")
 	}
 
-	if err := c.service.Create(category); err != nil {
-		return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	if category.Name == "" {
+		return ctx.JSON(http.StatusBadRequest, "Le nom de la catégorie est requis")
+	}
+
+	category.ID = utils.GenerateULID()
+	category.Note = 0
+	if _, err := ulid.Parse(category.ID); err != nil {
+		return ctx.JSON(http.StatusBadRequest, "Format ULID invalide")
+	}
+
+	if err := c.CategoryService.CreateCategory(&category); err != nil {
+		return ctx.JSON(http.StatusConflict, err.Error())
 	}
 
 	return ctx.JSON(http.StatusCreated, category)
 }
 
-// GetByID récupère une catégorie par son ID
-func (c *CategoryController) GetByID(ctx echo.Context) error {
-	id := ctx.Param("id")
-	category, err := c.service.GetByID(id)
+func (c *CategoryController) GetCategories(ctx echo.Context) error {
+	pagination := utils.PaginationFromContext(ctx)
+	search := ctx.QueryParam("search")
+
+	categoryPagination, err := c.CategoryService.GetCategories(pagination, &search)
 	if err != nil {
-		return ctx.JSON(http.StatusNotFound, map[string]string{"error": err.Error()})
-	}
-	return ctx.JSON(http.StatusOK, category)
-}
-
-// GetAll récupère toutes les catégories
-func (c *CategoryController) GetAll(ctx echo.Context) error {
-	categories, err := c.service.GetAll()
-	if err != nil {
-		return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
-	}
-	return ctx.JSON(http.StatusOK, categories)
-}
-
-// Update met à jour une catégorie
-func (c *CategoryController) Update(ctx echo.Context) error {
-	category := new(models.Category)
-	if err := ctx.Bind(category); err != nil {
-		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+		ctx.Logger().Error(err)
+		return ctx.NoContent(http.StatusInternalServerError)
 	}
 
-	category.ID = ctx.Param("id")
-	if err := c.service.Update(category); err != nil {
-		return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
-	}
-
-	return ctx.JSON(http.StatusOK, category)
-}
-
-// Delete supprime une catégorie
-func (c *CategoryController) Delete(ctx echo.Context) error {
-	id := ctx.Param("id")
-	if err := c.service.Delete(id); err != nil {
-		return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
-	}
-	return ctx.NoContent(http.StatusNoContent)
+	return ctx.JSON(http.StatusOK, categoryPagination)
 }

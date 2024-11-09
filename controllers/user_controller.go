@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"backend/database"
 	"backend/enums"
 	coreErrors "backend/errors"
 	"backend/models"
@@ -9,7 +10,9 @@ import (
 	"backend/utils"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
+	"os"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
@@ -64,10 +67,33 @@ func (c *UserController) CreateUser(ctx echo.Context) error {
 }
 
 func (c *UserController) GetUsers(ctx echo.Context) error {
-	pagination := utils.PaginationFromContext(ctx)
-	search := ctx.QueryParam("search")
+	var filters []services.UserFilter
+	params := ctx.QueryParams().Get("filters")
 
-	userPagination, err := c.UserService.GetUsers(pagination, &search)
+	if len(params) > 0 {
+		err := json.Unmarshal([]byte(params), &filters)
+		if err != nil {
+			return ctx.NoContent(http.StatusBadRequest)
+		}
+	}
+
+	validate := validator.New(validator.WithRequiredStructEnabled())
+	for _, filter := range filters {
+		err := validate.Struct(filter)
+		if err != nil {
+			var validationErrs validator.ValidationErrors
+			if errors.As(err, &validationErrs) {
+				validationErrors := utils.GetValidationErrors(validationErrs, filter)
+				return ctx.JSON(http.StatusUnprocessableEntity, validationErrors)
+			}
+			ctx.Logger().Error(err)
+			return ctx.NoContent(http.StatusInternalServerError)
+		}
+	}
+
+	pagination := utils.PaginationFromContext(ctx)
+
+	userPagination, err := c.UserService.GetUsers(pagination, filters...)
 	if err != nil {
 		ctx.Logger().Error(err)
 		return ctx.NoContent(http.StatusInternalServerError)
@@ -75,6 +101,7 @@ func (c *UserController) GetUsers(ctx echo.Context) error {
 
 	return ctx.JSON(http.StatusOK, userPagination)
 }
+
 func (c *UserController) DeleteUser(ctx echo.Context) error {
 	id := ctx.Param("id")
 
@@ -238,15 +265,74 @@ func (c *UserController) JoinAssociation(ctx echo.Context) error {
 		return ctx.JSON(http.StatusBadRequest, coreErrors.ErrInvalidULIDFormat)
 	}
 
-	if hasJoined, err := c.UserService.JoinAssociation(userID, associationID); err != nil {
+	code := ctx.QueryParam("code")
+	if code == "" {
+		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "Code is required"})
+	}
+
+	if hasJoined, err := c.UserService.JoinAssociation(userID, associationID, code); err != nil {
 		ctx.Logger().Error(err)
-		if errors.Is(err, coreErrors.ErrAlreadyJoined) {
+
+		switch {
+		case errors.Is(err, coreErrors.ErrAlreadyJoined):
 			return ctx.JSON(http.StatusConflict, map[string]string{"error": "User already joined"})
+		case errors.Is(err, coreErrors.ErrInvalidCode):
+			return ctx.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid association code"})
+		default:
+			return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
-		return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	} else if hasJoined {
 		return ctx.JSON(http.StatusCreated, "User successfully joined the association")
 	}
 
 	return ctx.NoContent(http.StatusNoContent)
+}
+
+func (c *UserController) UploadProfileImage(ctx echo.Context) error {
+	userID := ctx.Param("id")
+
+	authUserId := ctx.Get("user").(models.User).ID
+	if userID != authUserId {
+		return ctx.JSON(http.StatusForbidden, "Vous ne pouvez pas modifier l'image de profil d'un autre utilisateur !")
+	}
+
+	file, err := ctx.FormFile("image")
+	if err != nil {
+		ctx.Logger().Error("Error retrieving file: ", err)
+		return ctx.JSON(http.StatusBadRequest, "Erreur lors de l'upload de l'image")
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		return ctx.JSON(http.StatusInternalServerError, "Erreur lors de l'ouverture de l'image")
+	}
+	defer src.Close()
+
+	if _, err := os.Stat("public"); os.IsNotExist(err) {
+		os.MkdirAll("public", os.ModePerm)
+	}
+
+	imageName := userID + "" + file.Filename
+	imagePath := "public/" + imageName
+
+	dst, err := os.Create(imagePath)
+	if err != nil {
+		return ctx.JSON(http.StatusInternalServerError, "Erreur lors de la création de l'image")
+	}
+	defer dst.Close()
+
+	if _, err = io.Copy(dst, src); err != nil {
+		return ctx.JSON(http.StatusInternalServerError, "Erreur lors de l'enregistrement de l'image")
+	}
+
+	// Sauvegarde le chemin de l'image dans le champ ImageURL du modèle User
+	err = database.CurrentDatabase.Model(&models.User{}).
+		Where("id = ?", userID).
+		Update("image_url", imagePath).Error
+
+	if err != nil {
+		return ctx.JSON(http.StatusInternalServerError, "Erreur lors de la mise à jour de l'URL de l'image")
+	}
+
+	return ctx.JSON(http.StatusOK, map[string]string{"message": "Image uploadée avec succès", "image_url": imagePath})
 }

@@ -17,6 +17,7 @@ var appRouters = []routers.Router{
 	&routers.UserRouter{},
 	&routers.AuthRouter{},
 	&routers.AssociationRouter{},
+	&routers.CategoryRouter{},
 }
 
 func main() {
@@ -51,6 +52,11 @@ func main() {
 		return
 	}
 	routers.LoadRoutes(e, appRouters...)
+
+	// Serve static files for Flutter web
+	// e.Static("/app", utils.GetEnv("FLUTTER_BUILD_PATH", "flutter_build")+"/web")
+
+	e.Static("/public", "public")
 
 	addr := "0.0.0.0:3000"
 	e.Logger.Fatal(e.Start(addr))

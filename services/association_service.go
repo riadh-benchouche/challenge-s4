@@ -85,11 +85,3 @@ func (s *AssociationService) GetAllAssociations(pagination utils.Pagination, fil
 
 	return &pagination, nil
 }
-
-func (s *AssociationService) Update(association *models.Association) error {
-	return s.db.Save(association).Error
-}
-
-func (s *AssociationService) Delete(id string) error {
-	return s.db.Delete(&models.Association{}, "id = ?", id).Error
-}

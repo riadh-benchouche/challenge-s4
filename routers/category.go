@@ -2,17 +2,21 @@ package routers
 
 import (
 	"backend/controllers"
+	"backend/middlewares"
 
 	"github.com/labstack/echo/v4"
 )
 
-func SetupCategoryRoutes(e *echo.Echo, controller *controllers.CategoryController) {
+type CategoryRouter struct{}
 
-	api := e.Group("/api")
+func (r *CategoryRouter) SetupRoutes(e *echo.Echo) {
+	categoryController := controllers.NewCategoryController()
 
-	api.POST("/categories", controller.Create)
-	api.GET("/categories", controller.GetAll)
-	api.GET("/categories/:id", controller.GetByID)
-	api.PUT("/categories/:id", controller.Update)
-	api.DELETE("/categories/:id", controller.Delete)
+	categoryGroup := e.Group("/categories")
+
+	categoryGroup.POST("", categoryController.CreateCategory, middlewares.AuthenticationMiddleware())
+	categoryGroup.GET("", categoryController.GetCategories, middlewares.AuthenticationMiddleware())
+	// categoryGroup.GET("/:id", categoryController.GetCategoryByID)
+	// categoryGroup.PUT("/:id", categoryController.UpdateCategory, middlewares.AuthenticationMiddleware())
+	// categoryGroup.DELETE("/:id", categoryController.DeleteCategory, middlewares.AuthenticationMiddleware())
 }

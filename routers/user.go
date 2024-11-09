@@ -23,5 +23,6 @@ func (r *UserRouter) SetupRoutes(e *echo.Echo) {
 	group.GET("/:id/owner-associations", userController.GetOwnerAssociations, middlewares.AuthenticationMiddleware(enums.AdminRole))
 	group.GET("/:id/associations", userController.GetUserAssociations, middlewares.AuthenticationMiddleware())
 	group.POST("/:id/associations/:association_id", userController.JoinAssociation, middlewares.AuthenticationMiddleware())
+	group.POST("/:id/upload-image", userController.UploadProfileImage, middlewares.AuthenticationMiddleware())
 	// group.GET("/events", userController.GetUserEvents)
 }

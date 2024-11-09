@@ -7,7 +7,7 @@ import (
 	"backend/models"
 	"backend/resources"
 	"backend/utils"
-	"strconv"
+	"fmt"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -46,22 +46,19 @@ func (s *UserService) AddUser(user models.User) (*models.User, error) {
 	return &user, nil
 }
 
-func (s *UserService) GetUsers(pagination utils.Pagination, search *string) (*utils.Pagination, error) {
+func (s *UserService) GetUsers(pagination utils.Pagination, filters ...UserFilter) (*utils.Pagination, error) {
 	var users []models.User
-	query := database.CurrentDatabase
+	query := database.CurrentDatabase.Model(&models.User{})
 
-	if search != nil && *search != "" {
-		searchedId, _ := strconv.Atoi(*search)
-
-		query = query.Where(
-			query.Where("id = ?", searchedId).
-				Or("LOWER(name) LIKE ?", "%"+*search+"%").
-				Or("LOWER(email) LIKE ?", "%"+*search+"%"))
+	if len(filters) > 0 {
+		for _, filter := range filters {
+			query = query.Where(filter.Column+" ILIKE ?", "%"+fmt.Sprintf("%v", filter.Value)+"%")
+		}
 	}
 
 	err := query.Scopes(utils.Paginate(users, &pagination, query)).
-		Order("ID asc").
 		Find(&users).Error
+
 	if err != nil {
 		return nil, err
 	}
@@ -129,12 +126,19 @@ func (s *UserService) UpdateUser(id string, user models.User) (*models.User, err
 	return &user, nil
 }
 
-func (s *UserService) JoinAssociation(userID, associationID string) (bool, error) {
-	if err := database.CurrentDatabase.First(&models.User{}, "id = ?", userID).Error; err != nil {
+func (s *UserService) JoinAssociation(userID, associationID, code string) (bool, error) {
+	var user models.User
+	if err := database.CurrentDatabase.First(&user, "id = ?", userID).Error; err != nil {
 		return false, errors.ErrNotFound
 	}
-	if err := database.CurrentDatabase.First(&models.Association{}, "id = ?", associationID).Error; err != nil {
+
+	var association models.Association
+	if err := database.CurrentDatabase.First(&association, "id = ?", associationID).Error; err != nil {
 		return false, errors.ErrNotFound
+	}
+
+	if association.Code != code {
+		return false, errors.ErrInvalidCode
 	}
 
 	var membership models.Membership
@@ -146,7 +150,7 @@ func (s *UserService) JoinAssociation(userID, associationID string) (bool, error
 		UserID:        userID,
 		AssociationID: associationID,
 		JoinedAt:      time.Now(),
-		Status:        enums.Pending,
+		Status:        enums.Accepted,
 	}
 
 	if err := database.CurrentDatabase.Create(&newMembership).Error; err != nil {
@@ -154,6 +158,11 @@ func (s *UserService) JoinAssociation(userID, associationID string) (bool, error
 	}
 
 	return true, nil
+}
+
+type UserFilter struct {
+	database.Filter
+	Column string `json:"column" validate:"required,oneof=name email"`
 }
 
 // func (s *UserService) GetUserEvents(userID uint, pagination utils.Pagination) (*utils.Pagination, error) {

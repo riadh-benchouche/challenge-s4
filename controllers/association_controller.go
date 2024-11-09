@@ -1,13 +1,16 @@
 package controllers
 
 import (
+	"backend/database"
 	coreErrors "backend/errors"
 	"backend/models"
 	"backend/services"
 	"backend/utils"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
+	"os"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
@@ -54,7 +57,7 @@ func (c *AssociationController) CreateAssociation(ctx echo.Context) error {
 		return ctx.NoContent(http.StatusInternalServerError)
 	}
 
-	joinedAssociation, err := c.UserService.JoinAssociation(user.ID, newAssociation.ID)
+	joinedAssociation, err := c.UserService.JoinAssociation(user.ID, newAssociation.ID, newAssociation.Code)
 	if err != nil {
 		switch {
 		case errors.Is(err, coreErrors.ErrAlreadyJoined):
@@ -118,4 +121,59 @@ func (c *AssociationController) GetAllAssociations(ctx echo.Context) error {
 	}
 
 	return ctx.JSON(http.StatusOK, associations)
+}
+
+func (a *AssociationController) UploadProfileImage(ctx echo.Context) error {
+	associationID := ctx.Param("id")
+
+	authUserID := ctx.Get("user").(models.User).ID
+
+	var association models.Association
+	if err := database.CurrentDatabase.First(&association, "id = ?", associationID).Error; err != nil {
+		return ctx.JSON(http.StatusNotFound, "Association not found")
+	}
+
+	if association.OwnerID != authUserID {
+		return ctx.JSON(http.StatusForbidden, "You do not have permission to update this association")
+	}
+
+	file, err := ctx.FormFile("image")
+	if err != nil {
+		ctx.Logger().Error("Error retrieving file: ", err)
+		return ctx.JSON(http.StatusBadRequest, "Erreur lors de l'upload de l'image")
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		return ctx.JSON(http.StatusInternalServerError, "Erreur lors de l'ouverture de l'image")
+	}
+	defer src.Close()
+
+	if _, err := os.Stat("public"); os.IsNotExist(err) {
+		os.MkdirAll("public", os.ModePerm)
+	}
+
+	imageName := associationID + "_" + file.Filename
+	imagePath := "public/" + imageName
+
+	dst, err := os.Create(imagePath)
+	if err != nil {
+		return ctx.JSON(http.StatusInternalServerError, "Erreur lors de la création de l'image")
+	}
+	defer dst.Close()
+
+	if _, err = io.Copy(dst, src); err != nil {
+		return ctx.JSON(http.StatusInternalServerError, "Erreur lors de l'enregistrement de l'image")
+	}
+
+	// Sauvegarde le chemin de l'image dans le champ ImageURL du modèle User
+	err = database.CurrentDatabase.Model(&models.Association{}).
+		Where("id = ?", associationID).
+		Update("image_url", imagePath).Error
+
+	if err != nil {
+		return ctx.JSON(http.StatusInternalServerError, "Erreur lors de la mise à jour de l'URL de l'image")
+	}
+
+	return ctx.JSON(http.StatusOK, map[string]string{"message": "Image uploadée avec succès", "image_url": imagePath})
 }

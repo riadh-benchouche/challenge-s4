@@ -24,4 +24,5 @@ type Event struct {
 	Category      Category        `gorm:"foreignkey:CategoryID" json:"category"`
 	Association   Association     `gorm:"foreignkey:AssociationID" json:"association"`
 	Participation []Participation `gorm:"foreignkey:EventID" json:"participation,omitempty"`
+	User          []User          `gorm:"many2many:participations;joinForeignKey:EventID;joinReferences:UserID" json:"users"`
 }

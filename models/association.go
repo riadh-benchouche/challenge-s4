@@ -15,6 +15,7 @@ type Association struct {
 	Code        string    `json:"code" gorm:"unique;not null" validate:"required,min=5,max=20"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
+	ImageURL    string    `json:"image_url"`
 
 	// Foreign keys
 	OwnerID string `json:"owner_id" validate:"required"`
