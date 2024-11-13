@@ -1,28 +1,35 @@
 package models
 
 import (
+	"backend/utils"
 	"time"
 
 	"gorm.io/gorm"
 )
 
 type Event struct {
-	gorm.Model
 	ID          string    `json:"id" gorm:"primaryKey"`
-	Name        string    `json:"name" gorm:"not null"`
-	Description string    `json:"description"`
+	Name        string    `json:"name" gorm:"not null" faker:"word"`
+	Description string    `json:"description" faker:"sentence"`
 	Date        time.Time `json:"date"`
-	Location    string    `json:"location"`
+	Location    string    `json:"location" faker:"word"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 
 	// Foreign keys
-	CategoryID    string `json:"category_id" `
-	AssociationID string `json:"association_id" validate:"required"`
+	CategoryID    string `json:"category_id" faker:"-"`
+	AssociationID string `json:"association_id" validate:"required" faker:"-"`
 
 	// Relationships
-	Category      Category        `gorm:"foreignkey:CategoryID" json:"category"`
-	Association   Association     `gorm:"foreignkey:AssociationID" json:"association"`
-	Participation []Participation `gorm:"foreignkey:EventID" json:"participation,omitempty"`
-	User          []User          `gorm:"many2many:participations;joinForeignKey:EventID;joinReferences:UserID" json:"users"`
+	Category      Category        `gorm:"foreignkey:CategoryID" json:"category" faker:"-"`
+	Association   Association     `gorm:"foreignkey:AssociationID" json:"association" faker:"-"`
+	Participation []Participation `gorm:"foreignkey:EventID" json:"participation,omitempty" faker:"-"`
+	User          []User          `gorm:"many2many:participations;joinForeignKey:EventID;joinReferences:UserID" json:"users" faker:"-"`
+}
+
+func (e *Event) BeforeCreate(tx *gorm.DB) (err error) {
+	e.ID = utils.GenerateULID()
+	e.CreatedAt = time.Now()
+	e.Date = time.Now()
+	return nil
 }

@@ -1,29 +1,29 @@
 package models
 
 import (
+	"backend/utils"
 	"time"
 
 	"gorm.io/gorm"
 )
 
 type Association struct {
-	gorm.Model
 	ID          string    `json:"id" gorm:"primaryKey" validate:"required"`
-	Name        string    `json:"name" gorm:"not null"`
-	Description string    `json:"description"`
-	IsActive    bool      `json:"is_active" default:"false"`
+	Name        string    `json:"name" gorm:"not null" faker:"name"`
+	Description string    `json:"description" faker:"sentence"`
+	IsActive    bool      `json:"is_active" gorm:"default:false"`
 	Code        string    `json:"code" gorm:"unique;not null" validate:"required,min=5,max=20"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
-	ImageURL    string    `json:"image_url"`
+	ImageURL    string    `json:"image_url" faker:"url"`
 
 	// Foreign keys
-	OwnerID string `json:"owner_id" validate:"required"`
+	OwnerID string `json:"owner_id" validate:"required" faker:"-"`
 
 	// Relationships
-	Owner    User      `gorm:"foreignKey:OwnerID" json:"owner"`
-	Members  []User    `gorm:"many2many:memberships;joinForeignKey:AssociationID;joinReferences:UserID" json:"members"`
-	Messages []Message `gorm:"foreignKey:AssociationID"`
+	Owner    User      `gorm:"foreignKey:OwnerID" json:"owner" faker:"-"`
+	Members  []User    `gorm:"many2many:memberships;joinForeignKey:AssociationID;joinReferences:UserID" json:"members" faker:"-"`
+	Messages []Message `gorm:"foreignKey:AssociationID" faker:"-"`
 }
 
 func (a Association) ToAssociation() *Association {
@@ -36,4 +36,11 @@ func (a Association) ToAssociation() *Association {
 		UpdatedAt:   a.UpdatedAt,
 		OwnerID:     a.OwnerID,
 	}
+}
+
+func (a *Association) BeforeCreate(tx *gorm.DB) (err error) {
+	a.ID = utils.GenerateULID()
+	a.Code = utils.GenerateAssociationCode()
+	a.CreatedAt = time.Now()
+	return nil
 }
