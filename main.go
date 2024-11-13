@@ -2,6 +2,7 @@ package main
 
 import (
 	"backend/database"
+	"backend/faker"
 	"backend/routers"
 	"fmt"
 	"os"
@@ -57,6 +58,8 @@ func main() {
 	// e.Static("/app", utils.GetEnv("FLUTTER_BUILD_PATH", "flutter_build")+"/web")
 
 	e.Static("/public", "public")
+
+	faker.GenerateFakeData(newDB)
 
 	addr := "0.0.0.0:3000"
 	e.Logger.Fatal(e.Start(addr))
