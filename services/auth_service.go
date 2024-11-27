@@ -7,6 +7,7 @@ import (
 	"backend/requests"
 	"backend/resources"
 	"backend/utils"
+	"fmt"
 	"os"
 	"time"
 
@@ -81,15 +82,33 @@ func (s *AuthService) Register(Request requests.RegisterRequest) (*RegisterRespo
 		return nil, errors.ErrInternal
 	}
 
+	verificationToken := utils.GenerateULID()
+	tokenExpiresAt := time.Now().Add(24 * time.Hour)
+
+	// Log du token de vérification
+	fmt.Printf("Creating user with verification token: %s\n", verificationToken)
+
 	newUser := models.User{
-		ID:       utils.GenerateULID(),
-		Name:     Request.Name,
-		Email:    Request.Email,
-		Password: hashedPassword,
-		Role:     "user",
+		ID:                utils.GenerateULID(),
+		Name:              Request.Name,
+		Email:             Request.Email,
+		Password:          hashedPassword,
+		Role:              "user",
+		IsActive:          false,
+		VerificationToken: verificationToken,
+		TokenExpiresAt:    &tokenExpiresAt,
 	}
 
-	database.CurrentDatabase.Create(&newUser)
+	if err := database.CurrentDatabase.Create(&newUser).Error; err != nil {
+		fmt.Printf("Error creating user: %v\n", err)
+		return nil, errors.ErrInternal
+	}
+
+	// Vérification après création
+	var createdUser models.User
+	database.CurrentDatabase.First(&createdUser, "id = ?", newUser.ID)
+	fmt.Printf("Created user with token: %v\n", createdUser.VerificationToken)
+
 	jwtSecret, ok := os.LookupEnv("JWT_KEY")
 	if !ok {
 		return nil, errors.ErrInternal
@@ -119,4 +138,62 @@ func (s *AuthService) ValidateToken(tokenString string) (*jwt.Token, error) {
 	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		return []byte(jwtSecret), nil
 	})
+}
+
+func (s *AuthService) VerifyEmail(token string) error {
+	fmt.Printf("Attempting to verify token: %s\n", token)
+
+	var user models.User
+	result := database.CurrentDatabase.Where(
+		"verification_token = ? AND email_verified_at IS NULL AND token_expires_at > ?",
+		token,
+		time.Now(),
+	).First(&user)
+
+	if result.Error != nil {
+		fmt.Printf("Error finding user with token: %v\n", result.Error)
+		return errors.ErrInvalidToken
+	}
+
+	fmt.Printf("Found user: %s with token: %s\n", user.Email, user.VerificationToken)
+
+	now := time.Now()
+	updates := map[string]interface{}{
+		"email_verified_at":  now,
+		"is_active":          true,
+		"verification_token": "",
+		"token_expires_at":   nil,
+	}
+
+	if err := database.CurrentDatabase.Model(&user).Updates(updates).Error; err != nil {
+		return errors.ErrInternal
+	}
+
+	return nil
+}
+
+func (s *AuthService) RegenerateVerificationToken(email string) error {
+	var user models.User
+	result := database.CurrentDatabase.Where(
+		"email = ? AND email_verified_at IS NULL",
+		email,
+	).First(&user)
+
+	if result.Error != nil {
+		return errors.ErrUserNotFound
+	}
+
+	verificationToken := utils.GenerateULID()
+	tokenExpiresAt := time.Now().Add(24 * time.Hour)
+
+	updates := map[string]interface{}{
+		"verification_token": verificationToken,
+		"token_expires_at":   tokenExpiresAt,
+	}
+
+	if err := database.CurrentDatabase.Model(&user).Updates(updates).Error; err != nil {
+		return errors.ErrInternal
+	}
+
+	return nil
 }

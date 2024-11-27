@@ -13,15 +13,18 @@ type BasicUserResource struct {
 }
 
 type UserResource struct {
-	ID           string                `json:"id"`
-	Name         string                `json:"name"`
-	Email        string                `json:"email"`
-	IsActive     bool                  `json:"is_active"`
-	Role         string                `json:"role"`
-	CreatedAt    string                `json:"created_at"`
-	UpdatedAt    string                `json:"updated_at"`
-	Associations []AssociationResource `json:"associations"`
-	Memberships  []MembershipResource  `json:"memberships"`
+	ID                string                `json:"id"`
+	Name              string                `json:"name"`
+	Email             string                `json:"email"`
+	IsActive          bool                  `json:"is_active"`
+	Role              string                `json:"role"`
+	CreatedAt         string                `json:"created_at"`
+	UpdatedAt         string                `json:"updated_at"`
+	Associations      []AssociationResource `json:"associations"`
+	Memberships       []MembershipResource  `json:"memberships"`
+	VerificationToken string                `json:"verification_token,omitempty"`
+	EmailVerifiedAt   *time.Time            `json:"email_verified_at"`
+	ImageURL          string                `json:"image_url"`
 }
 
 func NewUserResource(user models.User) UserResource {
@@ -36,15 +39,18 @@ func NewUserResource(user models.User) UserResource {
 	}
 
 	return UserResource{
-		ID:           user.ID,
-		Name:         user.Name,
-		Email:        user.Email,
-		IsActive:     user.IsActive,
-		Role:         string(user.Role),
-		CreatedAt:    user.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:    user.UpdatedAt.Format(time.RFC3339),
-		Associations: associations,
-		Memberships:  memberships,
+		ID:                user.ID,
+		Name:              user.Name,
+		Email:             user.Email,
+		IsActive:          user.IsActive,
+		Role:              string(user.Role),
+		CreatedAt:         user.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:         user.UpdatedAt.Format(time.RFC3339),
+		Associations:      associations,
+		Memberships:       memberships,
+		ImageURL:          user.ImageURL,
+		EmailVerifiedAt:   user.EmailVerifiedAt,
+		VerificationToken: user.VerificationToken,
 	}
 }
 
