@@ -68,7 +68,7 @@ func main() {
 
 	//faker.GenerateFakeData(newDB)
 
-	addr := "0.0.0.0:3000"
+	addr := "0.0.0.0:3001"
 	e.Logger.Fatal(e.Start(addr))
 	fmt.Printf("Listening on %s\n", addr)
 }

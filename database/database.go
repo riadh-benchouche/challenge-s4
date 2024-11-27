@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
@@ -88,6 +89,44 @@ func InitDB() (*gorm.DB, error) {
 	// Stocker la base de données actuelle dans CurrentDatabase
 	CurrentDatabase = db
 	return db, nil
+}
+
+func migrateEmailVerification(db *gorm.DB) error {
+	type User struct {
+		EmailVerifiedAt   *time.Time
+		VerificationToken string
+		TokenExpiresAt    *time.Time
+	}
+
+	// Vérifier si les colonnes existent déjà
+	if !db.Migrator().HasColumn(&models.User{}, "email_verified_at") {
+		err := db.Migrator().AddColumn(&models.User{}, "email_verified_at")
+		if err != nil {
+			return fmt.Errorf("failed to add email_verified_at column: %v", err)
+		}
+	}
+
+	if !db.Migrator().HasColumn(&models.User{}, "verification_token") {
+		err := db.Migrator().AddColumn(&models.User{}, "verification_token")
+		if err != nil {
+			return fmt.Errorf("failed to add verification_token column: %v", err)
+		}
+		// Ajouter l'index unique
+		err = db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_verification_token ON users(verification_token) WHERE verification_token IS NOT NULL").Error
+		if err != nil {
+			return fmt.Errorf("failed to create verification_token index: %v", err)
+		}
+	}
+
+	if !db.Migrator().HasColumn(&models.User{}, "token_expires_at") {
+		err := db.Migrator().AddColumn(&models.User{}, "token_expires_at")
+		if err != nil {
+			return fmt.Errorf("failed to add token_expires_at column: %v", err)
+		}
+	}
+
+	fmt.Println("✅ Email verification migration completed")
+	return nil
 }
 
 // CloseDB ferme la connexion à la base de données

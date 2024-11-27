@@ -38,6 +38,14 @@ func (s *UserService) AddUser(user models.User) (*models.User, error) {
 	}
 	user.PlainPassword = nil
 
+	// Ajout des champs de vérification d'email
+	verificationToken := utils.GenerateULID()
+	tokenExpiresAt := time.Now().Add(24 * time.Hour)
+	user.VerificationToken = verificationToken
+	user.TokenExpiresAt = &tokenExpiresAt
+	user.IsActive = false
+	user.EmailVerifiedAt = nil
+
 	create := database.CurrentDatabase.Create(&user)
 	if create.Error != nil {
 		return nil, create.Error
@@ -118,12 +126,40 @@ func (s *UserService) UpdateUser(id string, user models.User) (*models.User, err
 		user.PlainPassword = nil
 	}
 
-	err = database.CurrentDatabase.Model(&models.User{}).Where("id = ?", id).Updates(&user).Error
+	// Préserver les champs de vérification d'email
+	fieldsToExclude := []string{"verification_token", "token_expires_at", "email_verified_at"}
+
+	// Si l'email est modifié, réinitialiser la vérification
+	var currentUser models.User
+	if err := database.CurrentDatabase.First(&currentUser, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+
+	if user.Email != currentUser.Email {
+		verificationToken := utils.GenerateULID()
+		tokenExpiresAt := time.Now().Add(24 * time.Hour)
+		user.VerificationToken = verificationToken
+		user.TokenExpiresAt = &tokenExpiresAt
+		user.EmailVerifiedAt = nil
+		user.IsActive = false
+		fieldsToExclude = nil // Permettre la mise à jour des champs de vérification
+	}
+	updateQuery := database.CurrentDatabase.Model(&models.User{}).Where("id = ?", id)
+	for _, field := range fieldsToExclude {
+		updateQuery = updateQuery.Omit(field)
+	}
+	err = updateQuery.Updates(&user).Error
 	if err != nil {
 		return nil, err
 	}
 
-	return &user, nil
+	// Récupérer l'utilisateur mis à jour
+	var updatedUser models.User
+	if err := database.CurrentDatabase.First(&updatedUser, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+
+	return &updatedUser, nil
 }
 
 func (s *UserService) JoinAssociation(userID, associationID, code string) (bool, error) {
