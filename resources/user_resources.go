@@ -39,18 +39,17 @@ func NewUserResource(user models.User) UserResource {
 	}
 
 	return UserResource{
-		ID:                user.ID,
-		Name:              user.Name,
-		Email:             user.Email,
-		IsActive:          user.IsActive,
-		Role:              string(user.Role),
-		CreatedAt:         user.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:         user.UpdatedAt.Format(time.RFC3339),
-		Associations:      associations,
-		Memberships:       memberships,
-		ImageURL:          user.ImageURL,
-		EmailVerifiedAt:   user.EmailVerifiedAt,
-		VerificationToken: user.VerificationToken,
+		ID:              user.ID,
+		Name:            user.Name,
+		Email:           user.Email,
+		IsActive:        user.IsActive,
+		Role:            string(user.Role),
+		CreatedAt:       user.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:       user.UpdatedAt.Format(time.RFC3339),
+		Associations:    associations,
+		Memberships:     memberships,
+		ImageURL:        user.ImageURL,
+		EmailVerifiedAt: user.EmailVerifiedAt,
 	}
 }
 

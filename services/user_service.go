@@ -1,12 +1,14 @@
 package services
 
 import (
+	"backend/config"
 	"backend/database"
 	"backend/enums"
 	"backend/errors"
 	"backend/models"
 	"backend/resources"
 	"backend/utils"
+	"context"
 	"fmt"
 	"time"
 
@@ -38,16 +40,26 @@ func (s *UserService) AddUser(user models.User) (*models.User, error) {
 	}
 	user.PlainPassword = nil
 
-	// Ajout des champs de vérification d'email
+	// Gérer la vérification d'email avec Redis
 	verificationToken := utils.GenerateULID()
-	tokenExpiresAt := time.Now().Add(24 * time.Hour)
-	user.VerificationToken = verificationToken
-	user.TokenExpiresAt = &tokenExpiresAt
+	ctx := context.Background()
+
+	// Stocker le token dans Redis
+	err = config.RedisClient.Set(ctx,
+		"email_verification:"+verificationToken,
+		user.Email,
+		24*time.Hour).Err()
+	if err != nil {
+		return nil, err
+	}
+
 	user.IsActive = false
 	user.EmailVerifiedAt = nil
 
 	create := database.CurrentDatabase.Create(&user)
 	if create.Error != nil {
+		// En cas d'erreur, nettoyer Redis
+		config.RedisClient.Del(ctx, "email_verification:"+verificationToken)
 		return nil, create.Error
 	}
 
@@ -126,9 +138,6 @@ func (s *UserService) UpdateUser(id string, user models.User) (*models.User, err
 		user.PlainPassword = nil
 	}
 
-	// Préserver les champs de vérification d'email
-	fieldsToExclude := []string{"verification_token", "token_expires_at", "email_verified_at"}
-
 	// Si l'email est modifié, réinitialiser la vérification
 	var currentUser models.User
 	if err := database.CurrentDatabase.First(&currentUser, "id = ?", id).Error; err != nil {
@@ -136,24 +145,27 @@ func (s *UserService) UpdateUser(id string, user models.User) (*models.User, err
 	}
 
 	if user.Email != currentUser.Email {
+		// Générer un nouveau token dans Redis
 		verificationToken := utils.GenerateULID()
-		tokenExpiresAt := time.Now().Add(24 * time.Hour)
-		user.VerificationToken = verificationToken
-		user.TokenExpiresAt = &tokenExpiresAt
+		ctx := context.Background()
+
+		err = config.RedisClient.Set(ctx,
+			"email_verification:"+verificationToken,
+			user.Email,
+			24*time.Hour).Err()
+		if err != nil {
+			return nil, err
+		}
+
 		user.EmailVerifiedAt = nil
 		user.IsActive = false
-		fieldsToExclude = nil // Permettre la mise à jour des champs de vérification
 	}
-	updateQuery := database.CurrentDatabase.Model(&models.User{}).Where("id = ?", id)
-	for _, field := range fieldsToExclude {
-		updateQuery = updateQuery.Omit(field)
-	}
-	err = updateQuery.Updates(&user).Error
+
+	err = database.CurrentDatabase.Model(&models.User{}).Where("id = ?", id).Updates(&user).Error
 	if err != nil {
 		return nil, err
 	}
 
-	// Récupérer l'utilisateur mis à jour
 	var updatedUser models.User
 	if err := database.CurrentDatabase.First(&updatedUser, "id = ?", id).Error; err != nil {
 		return nil, err
@@ -200,23 +212,3 @@ type UserFilter struct {
 	database.Filter
 	Column string `json:"column" validate:"required,oneof=name email"`
 }
-
-// func (s *UserService) GetUserEvents(userID uint, pagination utils.Pagination) (*utils.Pagination, error) {
-// 	var events []models.Event
-
-// 	query := database.CurrentDatabase.
-// 		Joins("JOIN attends ON attends.event_id = events.id").
-// 		Where("attends.user_id = ?", userID).
-// 		Where("date >= ?", time.Now().Format(models.DateFormat)).
-// 		Where("time is null or (date > ? or time >= ?)", time.Now().Format(models.DateFormat), time.Now().Format(models.TimeFormat)).
-// 		Preload("Participants").
-// 		Preload("Address").
-// 		Order("date").
-// 		Order("time")
-
-// 	query.Scopes(utils.Paginate(events, &pagination, query)).Find(&events)
-
-// 	pagination.Rows = events
-
-// 	return &pagination, nil
-// }
