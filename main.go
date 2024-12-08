@@ -1,6 +1,7 @@
 package main
 
 import (
+	"backend/config"
 	"backend/database"
 	"backend/routers"
 	"backend/swagger"
@@ -39,6 +40,10 @@ func main() {
 		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},
 	}))
 
+	if err := config.InitRedis(); err != nil {
+		log.Fatal("Failed to connect to Redis:", err)
+	}
+
 	fmt.Printf("APP_MODE: %s\n", os.Getenv("ENVIRONMENT"))
 
 	// Initialisation de la base de données
@@ -71,4 +76,5 @@ func main() {
 	addr := "0.0.0.0:3001"
 	e.Logger.Fatal(e.Start(addr))
 	fmt.Printf("Listening on %s\n", addr)
+
 }

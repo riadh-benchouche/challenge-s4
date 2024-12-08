@@ -2,13 +2,12 @@ package controllers
 
 import (
 	"backend/database"
-	coreErrors "backend/errors"
+	"backend/errors"
 	"backend/models"
 	"backend/requests"
 	"backend/services"
 	"backend/utils"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -42,10 +41,10 @@ func (c *AuthController) Login(ctx echo.Context) error {
 
 	result, err := c.authService.Login(jsonBody.Email, jsonBody.Password)
 	if err != nil {
-		if errors.Is(err, coreErrors.ErrInvalidCredentials) {
+		if err == errors.ErrInvalidCredentials {
 			return ctx.String(http.StatusUnauthorized, "Invalid credentials")
 		}
-		if errors.Is(err, coreErrors.ErrEmailNotVerified) {
+		if err == errors.ErrEmailNotVerified {
 			return ctx.JSON(http.StatusUnauthorized, map[string]string{
 				"error": "Email not verified",
 			})
@@ -71,14 +70,11 @@ func (c *AuthController) Register(ctx echo.Context) error {
 		return ctx.JSON(http.StatusUnprocessableEntity, validationErrors)
 	}
 
-	var existingUser models.User
-	database.CurrentDatabase.Where("email = ?", jsonBody.Email).First(&existingUser)
-	if existingUser.ID != "" {
-		return ctx.String(http.StatusConflict, "Email already used")
-	}
-
 	result, err := c.authService.Register(jsonBody)
 	if err != nil {
+		if err == errors.ErrEmailAlreadyExists {
+			return ctx.String(http.StatusConflict, "Email already used")
+		}
 		ctx.Logger().Error(err)
 		return ctx.NoContent(http.StatusInternalServerError)
 	}
@@ -174,28 +170,31 @@ func (c *AuthController) ConfirmEmail(ctx echo.Context) error {
 		})
 	}
 
-	// Récupérer l'utilisateur avant la vérification
-	var user models.User
-	if err := database.CurrentDatabase.Where("verification_token = ?", token).First(&user).Error; err != nil {
-		return ctx.JSON(http.StatusNotFound, map[string]string{
-			"error": "Invalid token",
-		})
-	}
-
-	// Vérifier l'email
-	err := c.authService.VerifyEmail(token)
+	err := c.authService.ConfirmEmail(token)
 	if err != nil {
-		if errors.Is(err, coreErrors.ErrInvalidToken) {
-			return ctx.JSON(http.StatusNotFound, map[string]string{
+		switch err {
+		case errors.ErrInvalidToken:
+			return ctx.JSON(http.StatusBadRequest, map[string]string{
 				"error": "Invalid or expired token",
 			})
+		default:
+			ctx.Logger().Error(err)
+			return ctx.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "An error occurred while confirming email",
+			})
 		}
-		return ctx.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Database error",
+	}
+
+	// Récupérer l'utilisateur après la confirmation
+	var user models.User
+	if err := database.CurrentDatabase.Where("email_verified_at IS NOT NULL").
+		Order("email_verified_at DESC").First(&user).Error; err != nil {
+		ctx.Logger().Error("Erreur lors de la récupération de l'utilisateur :", err)
+		return ctx.JSON(http.StatusOK, map[string]string{
+			"message": "Email confirmé avec succès",
 		})
 	}
 
-	// Envoyer un email de confirmation réussie
 	subject := "Votre compte a été confirmé"
 	body := fmt.Sprintf(`
    <!DOCTYPE html>
@@ -260,77 +259,71 @@ func (c *AuthController) ResendConfirmation(ctx echo.Context) error {
 		})
 	}
 
-	err := c.authService.RegenerateVerificationToken(email)
+	var user models.User
+	if err := database.CurrentDatabase.Where("email = ?", email).First(&user).Error; err != nil {
+		return ctx.JSON(http.StatusNotFound, map[string]string{
+			"error": "User not found",
+		})
+	}
+
+	err := c.authService.ResendConfirmation(email)
 	if err != nil {
-		if errors.Is(err, coreErrors.ErrUserNotFound) {
+		switch err {
+		case errors.ErrUserNotFound:
 			return ctx.JSON(http.StatusNotFound, map[string]string{
 				"error": "User not found or already verified",
 			})
+		default:
+			return ctx.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "An error occurred while regenerating token",
+			})
 		}
-		return ctx.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Database error",
-		})
-	}
-
-	var user models.User
-	if err := database.CurrentDatabase.Where("email = ?", email).First(&user).Error; err != nil {
-		return ctx.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Could not fetch user data",
-		})
-	}
-
-	// Envoyer le nouvel email
-	confirmationLink := fmt.Sprintf("http://localhost:8080/auth/confirm?token=%s", user.VerificationToken)
-	subject := "Nouveau lien de confirmation"
-	body := fmt.Sprintf(`
-   <!DOCTYPE html>
-   <html lang="fr">
-   <head>
-       <meta charset="UTF-8">
-       <title>Nouveau lien de confirmation</title>
-       <style>
-           body {
-               font-family: Arial, sans-serif;
-               line-height: 1.6;
-               color: #333;
-           }
-           .container {
-               max-width: 600px;
-               margin: 0 auto;
-               padding: 20px;
-               background-color: #f9f9f9;
-               border-radius: 5px;
-           }
-           .button {
-               display: inline-block;
-               background-color: #4CAF50;
-               color: white;
-               padding: 14px 20px;
-               text-decoration: none;
-               border-radius: 4px;
-               margin: 20px 0;
-           }
-       </style>
-   </head>
-   <body>
-       <div class="container">
-           <h2>Bonjour %s</h2>
-           <p>Voici votre nouveau lien de confirmation. Ce lien expirera dans 24 heures.</p>
-           <a href="%s" class="button">Confirmer mon compte</a>
-           <p>Si le bouton ne fonctionne pas, vous pouvez copier ce lien dans votre navigateur :</p>
-           <p>%s</p>
-       </div>
-   </body>
-   </html>
-   `, user.Name, confirmationLink, confirmationLink)
-
-	if err := utils.SendEmail(user.Email, subject, body); err != nil {
-		return ctx.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Could not send confirmation email",
-		})
 	}
 
 	return ctx.JSON(http.StatusOK, map[string]string{
 		"message": "Nouveau email de confirmation envoyé",
+	})
+}
+func EmailVerificationLoggingMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		if c.Path() == "/auth/confirm" {
+			token := c.QueryParam("token")
+			fmt.Printf("🔍 Email verification request received\n")
+			fmt.Printf("🎟️ Token: %s\n", token)
+			fmt.Printf("📋 Request Method: %s\n", c.Request().Method)
+			fmt.Printf("🔗 Full URL: %s\n", c.Request().URL.String())
+		}
+		return next(c)
+	}
+}
+func (c *AuthController) VerifyEmailHandler(ctx echo.Context) error {
+	token := ctx.QueryParam("token")
+	fmt.Printf("📨 Processing email verification for token: %s\n", token)
+
+	if token == "" {
+		fmt.Printf("❌ Empty token received\n")
+		return ctx.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Token is required",
+		})
+	}
+
+	err := c.authService.ConfirmEmail(token)
+	if err != nil {
+		fmt.Printf("❌ Error confirming email: %v\n", err)
+		switch err {
+		case errors.ErrInvalidToken:
+			return ctx.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Invalid or expired token",
+			})
+		default:
+			return ctx.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "An error occurred while confirming email",
+			})
+		}
+	}
+
+	fmt.Printf("✅ Email verified successfully\n")
+	return ctx.JSON(http.StatusOK, map[string]string{
+		"message": "Email verified successfully",
 	})
 }
