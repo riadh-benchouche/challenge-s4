@@ -12,7 +12,7 @@ type User struct {
 	ID            string     `json:"id" gorm:"primaryKey" validate:"required"`
 	Name          string     `json:"name" validate:"required,min=2,max=50" faker:"name"`
 	Email         string     `gorm:"uniqueIndex:idx_email_deleted_at" json:"email" validate:"email,required" faker:"email"`
-	Password      string     `json:"-" faker="password"`
+	Password      string     `json:"-"`
 	PlainPassword *string    `gorm:"-" json:"password,omitempty" validate:"required_without=Password,omitempty,min=8,max=72"`
 	Role          enums.Role `gorm:"default:user" json:"role" validate:"omitempty,oneof=admin user root" faker:"oneof:admin,association_leader,user"`
 	IsActive      bool       `json:"is_active" gorm:"default:false" faker:"-"`
