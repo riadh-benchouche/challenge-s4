@@ -19,7 +19,6 @@ func NewChatbotController() *ChatbotController {
 }
 
 func (cc *ChatbotController) ChatHandler(c echo.Context) error {
-	fmt.Println("ChatHandler reached")
 	var chatReq services.ChatRequest
 	if err := c.Bind(&chatReq); err != nil {
 		fmt.Println("Error binding request:", err)
@@ -32,6 +31,5 @@ func (cc *ChatbotController) ChatHandler(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error getting response from ChatGPT"})
 	}
 
-	fmt.Println("ChatGPT response:", response)
 	return c.JSON(http.StatusOK, map[string]string{"response": response})
 }
