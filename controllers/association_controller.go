@@ -177,3 +177,41 @@ func (a *AssociationController) UploadProfileImage(ctx echo.Context) error {
 
 	return ctx.JSON(http.StatusOK, map[string]string{"message": "Image uploadée avec succès", "image_url": imagePath})
 }
+
+func (c *AssociationController) GetNextEvent(ctx echo.Context) error {
+	associationID := ctx.Param("associationId")
+
+	if associationID == "" {
+		return ctx.NoContent(http.StatusBadRequest)
+	}
+
+	event, err := c.AssociationService.GetNextEvent(associationID)
+	if err != nil {
+		ctx.Logger().Error(err)
+		return ctx.NoContent(http.StatusInternalServerError)
+	}
+
+	if event == nil {
+		return ctx.NoContent(http.StatusOK)
+	}
+
+	return ctx.JSON(http.StatusOK, event)
+}
+
+func (c *AssociationController) GetAssociationEvents(ctx echo.Context) error {
+	associationID := ctx.Param("associationId")
+
+	if associationID == "" {
+		return ctx.NoContent(http.StatusBadRequest)
+	}
+
+	pagination := utils.PaginationFromContext(ctx)
+
+	events, err := c.AssociationService.GetAssociationEvents(associationID, pagination)
+	if err != nil {
+		ctx.Logger().Error(err)
+		return ctx.NoContent(http.StatusInternalServerError)
+	}
+
+	return ctx.JSON(http.StatusOK, events)
+}

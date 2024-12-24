@@ -55,3 +55,57 @@ func (c *CategoryController) GetCategories(ctx echo.Context) error {
 
 	return ctx.JSON(http.StatusOK, categoryPagination)
 }
+
+func (c *CategoryController) GetCategoryById(ctx echo.Context) error {
+	id := ctx.Param("id")
+	category, err := c.CategoryService.GetCategoryById(id)
+	if err != nil {
+		return ctx.JSON(http.StatusNotFound, "Catégorie non trouvée")
+	}
+
+	return ctx.JSON(http.StatusOK, category)
+}
+
+func (c *CategoryController) UpdateCategory(ctx echo.Context) error {
+	categoryID := ctx.Param("id")
+
+	existingCategory, err := c.CategoryService.GetCategoryById(categoryID)
+	if err != nil {
+		return ctx.JSON(http.StatusNotFound, "Catégorie introuvable")
+	}
+
+	var updateData struct {
+		Name        *string `json:"name"`
+		Description *string `json:"description"`
+	}
+	if err := ctx.Bind(&updateData); err != nil {
+		return ctx.JSON(http.StatusBadRequest, "Données de catégorie invalides")
+	}
+
+	if updateData.Name != nil {
+		existingCategory.Name = *updateData.Name
+	}
+	if updateData.Description != nil {
+		existingCategory.Description = *updateData.Description
+	}
+
+	if err := c.CategoryService.UpdateCategory(existingCategory); err != nil {
+		return ctx.JSON(http.StatusConflict, err.Error())
+	}
+
+	return ctx.JSON(http.StatusOK, existingCategory)
+}
+
+func (c *CategoryController) DeleteCategory(ctx echo.Context) error {
+	id := ctx.Param("id")
+	if _, err := ulid.Parse(id); err != nil {
+		return ctx.JSON(http.StatusBadRequest, "ID invalide")
+	}
+
+	err := c.CategoryService.DeleteCategory(id)
+	if err != nil {
+		return ctx.JSON(http.StatusNotFound, "Catégorie non trouvée")
+	}
+
+	return ctx.NoContent(http.StatusNoContent)
+}

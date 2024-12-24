@@ -3,14 +3,14 @@ package enums
 type Role string
 
 const (
-	RootRole  Role = "root"
-	AdminRole Role = "admin"
-	UserRole  Role = "user"
+	AdminRole             Role = "admin"
+	AssociationLeaderRole Role = "association_leader"
+	UserRole              Role = "user"
 )
 
 var AllRoles = []Role{
-	RootRole,
 	AdminRole,
+	AssociationLeaderRole,
 	UserRole,
 }
 
@@ -23,12 +23,12 @@ func IsValidRole(role Role) bool {
 	return false
 }
 
-func IsRoot(role Role) bool {
-	return role == RootRole
-}
-
 func IsAdmin(role Role) bool {
 	return role == AdminRole
+}
+
+func IsAssociationLeader(role Role) bool {
+	return role == AssociationLeaderRole
 }
 
 func IsUser(role Role) bool {

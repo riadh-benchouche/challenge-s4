@@ -165,22 +165,19 @@ type UserFilter struct {
 	Column string `json:"column" validate:"required,oneof=name email"`
 }
 
-// func (s *UserService) GetUserEvents(userID uint, pagination utils.Pagination) (*utils.Pagination, error) {
-// 	var events []models.Event
+func (s *UserService) GetUserEvents(userID string, pagination utils.Pagination) (*utils.Pagination, error) {
+	var events []models.Event
 
-// 	query := database.CurrentDatabase.
-// 		Joins("JOIN attends ON attends.event_id = events.id").
-// 		Where("attends.user_id = ?", userID).
-// 		Where("date >= ?", time.Now().Format(models.DateFormat)).
-// 		Where("time is null or (date > ? or time >= ?)", time.Now().Format(models.DateFormat), time.Now().Format(models.TimeFormat)).
-// 		Preload("Participants").
-// 		Preload("Address").
-// 		Order("date").
-// 		Order("time")
+	query := database.CurrentDatabase.
+		Joins("JOIN participations ON participations.event_id = events.id").
+		Where("participations.user_id = ?", userID).
+		Where("date >= ?", time.Now().Format(models.DateFormat)).
+		Preload("Participants").
+		Order("date")
 
-// 	query.Scopes(utils.Paginate(events, &pagination, query)).Find(&events)
+	query.Scopes(utils.Paginate(events, &pagination, query)).Find(&events)
 
-// 	pagination.Rows = events
+	pagination.Rows = events
 
-// 	return &pagination, nil
-// }
+	return &pagination, nil
+}

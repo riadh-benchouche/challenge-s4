@@ -1,20 +1,21 @@
 package models
 
 import (
-	"backend/enums"
+	"backend/utils"
 	"time"
 
 	"gorm.io/gorm"
 )
 
 type Participation struct {
-	Status    enums.Status `json:"status" gorm:"default:pending" validate:"omitempty,oneof=pending present absent" faker:"oneof:pending,present,absent"`
-	CreatedAt time.Time    `json:"created_at"`
-	UpdatedAt time.Time    `json:"updated_at"`
+	ID          string    `json:"id" gorm:"primaryKey" validate:"required"`
+	IsAttending bool      `json:"is_attending" gorm:"default:false" validate:"-" faker:"bool"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 
 	// Foreign keys
-	UserID  *string `json:"user_id" validate:"required" gorm:"primaryKey" faker:"-"`
-	EventID *string `json:"event_id" gorm:"primaryKey" faker:"-"`
+	UserID  string `json:"user_id" validate:"required" gorm:"primaryKey" faker:"-"`
+	EventID string `json:"event_id" gorm:"primaryKey" faker:"-"`
 
 	// Relationships
 	User  *User  `gorm:"foreignkey:UserID" json:"user" faker:"-"`
@@ -22,6 +23,13 @@ type Participation struct {
 }
 
 func (p *Participation) BeforeCreate(tx *gorm.DB) (err error) {
+	p.ID = utils.GenerateULID()
 	p.CreatedAt = time.Now()
+	p.UpdatedAt = time.Now()
+	return nil
+}
+
+func (p *Participation) BeforeUpdate(tx *gorm.DB) (err error) {
+	p.UpdatedAt = time.Now()
 	return nil
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"backend/database"
-	"backend/faker"
 	"backend/routers"
 	"fmt"
 	"os"
@@ -19,6 +18,8 @@ var appRouters = []routers.Router{
 	&routers.AuthRouter{},
 	&routers.AssociationRouter{},
 	&routers.CategoryRouter{},
+	&routers.EventRouter{},
+	// &routers.ChatbotRouter{},
 }
 
 func main() {
@@ -59,7 +60,7 @@ func main() {
 
 	e.Static("/public", "public")
 
-	faker.GenerateFakeData(newDB)
+	// faker.GenerateFakeData(newDB)
 
 	addr := "0.0.0.0:3000"
 	e.Logger.Fatal(e.Start(addr))

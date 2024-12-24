@@ -21,10 +21,10 @@ type Event struct {
 	AssociationID string `json:"association_id" validate:"required" faker:"-"`
 
 	// Relationships
-	Category      Category        `gorm:"foreignkey:CategoryID" json:"category" faker:"-"`
-	Association   Association     `gorm:"foreignkey:AssociationID" json:"association" faker:"-"`
-	Participation []Participation `gorm:"foreignkey:EventID" json:"participation,omitempty" faker:"-"`
-	User          []User          `gorm:"many2many:participations;joinForeignKey:EventID;joinReferences:UserID" json:"users" faker:"-"`
+	Category       Category        `gorm:"foreignkey:CategoryID" json:"-" validate:"-" faker:"-"`
+	Association    Association     `gorm:"foreignkey:AssociationID" json:"-" validate:"-" faker:"-"`
+	Participations []Participation `gorm:"foreignkey:EventID" json:"participations,omitempty" faker:"-"`
+	User           []User          `gorm:"many2many:participations;joinForeignKey:EventID;joinReferences:UserID" json:"users" faker:"-"`
 }
 
 func (e *Event) BeforeCreate(tx *gorm.DB) (err error) {
