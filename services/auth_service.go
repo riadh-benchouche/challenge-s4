@@ -31,7 +31,8 @@ func (s *AuthService) CheckPasswordHash(password, hash string) bool {
 }
 
 type LoginResponse struct {
-	Token string `json:"token"`
+	Token string      `json:"token"`
+	User  models.User `json:"user"`
 }
 
 type RegisterResponse struct {
@@ -72,7 +73,7 @@ func (s *AuthService) Login(email, password string) (*LoginResponse, error) {
 		return nil, errors.ErrInternal
 	}
 
-	return &LoginResponse{Token: token}, nil
+	return &LoginResponse{Token: token, User: targetUser}, nil
 }
 
 func (s *AuthService) Register(Request requests.RegisterRequest) (*RegisterResponse, error) {
