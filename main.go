@@ -19,6 +19,7 @@ var appRouters = []routers.Router{
 	&routers.AssociationRouter{},
 	&routers.CategoryRouter{},
 	&routers.ChatbotRouter{},
+	&routers.WebSocketRouter{},
 }
 
 func main() {
