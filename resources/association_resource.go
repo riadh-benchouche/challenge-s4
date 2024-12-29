@@ -11,6 +11,7 @@ type AssociationResource struct {
 	Description string `json:"description"`
 	IsActive    bool   `json:"is_active"`
 	Code        string `json:"code"`
+	ImageUrl    string `json:"image_url"`
 	CreatedAt   string `json:"created_at"`
 	UpdatedAt   string `json:"updated_at"`
 
@@ -24,6 +25,7 @@ func NewAssociationResource(association models.Association) AssociationResource 
 		Description: association.Description,
 		IsActive:    association.IsActive,
 		Code:        association.Code,
+		ImageUrl:    association.ImageURL,
 		CreatedAt:   association.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:   association.UpdatedAt.Format(time.RFC3339),
 		Owner:       NewBasicUserResource(association.Owner),

@@ -15,7 +15,7 @@ func (r *AssociationRouter) SetupRoutes(e *echo.Echo) {
 
 	group := e.Group("/associations")
 
-	group.GET("", associationController.GetAllAssociations, middlewares.AuthenticationMiddleware(enums.AdminRole))
+	group.GET("", associationController.GetAllAssociations, middlewares.AuthenticationMiddleware())
 	group.GET("/:associationId", associationController.GetAssociationById, middlewares.AuthenticationMiddleware(), middlewares.AssociationMembershipMiddleware)
 	group.POST("", associationController.CreateAssociation, middlewares.AuthenticationMiddleware(enums.AssociationLeaderRole))
 	group.POST("/:id/upload-image", associationController.UploadProfileImage, middlewares.AuthenticationMiddleware())

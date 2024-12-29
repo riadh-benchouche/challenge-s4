@@ -257,6 +257,10 @@ func (c *UserController) GetUserAssociations(ctx echo.Context) error {
 		associationResources[i] = resources.NewAssociationResource(association)
 	}
 
+	if len(associationResources) == 0 {
+		return ctx.JSONPretty(http.StatusNoContent, "Aucune association trouvée", " ")
+	}
+
 	return ctx.JSON(http.StatusOK, associationResources)
 }
 
