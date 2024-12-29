@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"os"
 
@@ -123,7 +124,7 @@ func (c *AssociationController) GetAllAssociations(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, associations)
 }
 
-func (a *AssociationController) UploadProfileImage(ctx echo.Context) error {
+func (c *AssociationController) UploadProfileImage(ctx echo.Context) error {
 	associationID := ctx.Param("id")
 
 	authUserID := ctx.Get("user").(models.User).ID
@@ -147,10 +148,18 @@ func (a *AssociationController) UploadProfileImage(ctx echo.Context) error {
 	if err != nil {
 		return ctx.JSON(http.StatusInternalServerError, "Erreur lors de l'ouverture de l'image")
 	}
-	defer src.Close()
+	defer func(src multipart.File) {
+		err := src.Close()
+		if err != nil {
+			ctx.Logger().Error("Error closing file: ", err)
+		}
+	}(src)
 
 	if _, err := os.Stat("public"); os.IsNotExist(err) {
-		os.MkdirAll("public", os.ModePerm)
+		err := os.MkdirAll("public", os.ModePerm)
+		if err != nil {
+			return err
+		}
 	}
 
 	imageName := associationID + "_" + file.Filename
@@ -160,7 +169,12 @@ func (a *AssociationController) UploadProfileImage(ctx echo.Context) error {
 	if err != nil {
 		return ctx.JSON(http.StatusInternalServerError, "Erreur lors de la création de l'image")
 	}
-	defer dst.Close()
+	defer func(dst *os.File) {
+		err := dst.Close()
+		if err != nil {
+			ctx.Logger().Error("Error closing file: ", err)
+		}
+	}(dst)
 
 	if _, err = io.Copy(dst, src); err != nil {
 		return ctx.JSON(http.StatusInternalServerError, "Erreur lors de l'enregistrement de l'image")
@@ -214,4 +228,31 @@ func (c *AssociationController) GetAssociationEvents(ctx echo.Context) error {
 	}
 
 	return ctx.JSON(http.StatusOK, events)
+}
+
+func (c *AssociationController) JoinAssociation(ctx echo.Context) error {
+	code := ctx.Param("code")
+
+	user, ok := ctx.Get("user").(models.User)
+	if !ok || user.ID == "" {
+		return ctx.NoContent(http.StatusUnauthorized)
+	}
+
+	joinedAssociation, err := c.AssociationService.JoinAssociationByCode(user.ID, code)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, coreErrors.ErrAssociationNotFound):
+			return ctx.String(http.StatusNotFound, err.Error())
+		case errors.Is(err, coreErrors.ErrAlreadyJoined):
+			return ctx.String(http.StatusConflict, err.Error())
+		case errors.Is(err, coreErrors.ErrCodeDoesNotExist):
+			return ctx.String(http.StatusNotFound, err.Error())
+		default:
+			ctx.Logger().Error(err)
+			return ctx.NoContent(http.StatusInternalServerError)
+		}
+	}
+
+	return ctx.JSON(http.StatusOK, joinedAssociation)
 }

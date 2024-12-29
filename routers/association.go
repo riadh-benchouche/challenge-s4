@@ -21,4 +21,5 @@ func (r *AssociationRouter) SetupRoutes(e *echo.Echo) {
 	group.POST("/:id/upload-image", associationController.UploadProfileImage, middlewares.AuthenticationMiddleware())
 	group.GET("/:associationId/next-event", associationController.GetNextEvent, middlewares.AuthenticationMiddleware(), middlewares.AssociationMembershipMiddleware)
 	group.GET("/:associationId/events", associationController.GetAssociationEvents, middlewares.AuthenticationMiddleware(), middlewares.AssociationMembershipMiddleware)
+	group.POST("/join/:code", associationController.JoinAssociation, middlewares.AuthenticationMiddleware())
 }
