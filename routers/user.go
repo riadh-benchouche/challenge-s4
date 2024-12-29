@@ -20,7 +20,7 @@ func (r *UserRouter) SetupRoutes(e *echo.Echo) {
 	group.PUT("/:id", userController.UpdateUser, middlewares.AuthenticationMiddleware())
 	group.DELETE("/:id", userController.DeleteUser, middlewares.AuthenticationMiddleware(enums.AdminRole))
 	group.GET("/:id", userController.FindByID, middlewares.AuthenticationMiddleware())
-	group.GET("/:id/owner-associations", userController.GetOwnerAssociations, middlewares.AuthenticationMiddleware(enums.AdminRole))
+	group.GET("/:id/owner-associations", userController.GetOwnerAssociations, middlewares.AuthenticationMiddleware(enums.AssociationLeaderRole))
 	group.GET("/:id/associations", userController.GetUserAssociations, middlewares.AuthenticationMiddleware())
 	group.POST("/:id/associations/:association_id", userController.JoinAssociation, middlewares.AuthenticationMiddleware())
 	group.POST("/:id/upload-image", userController.UploadProfileImage, middlewares.AuthenticationMiddleware())

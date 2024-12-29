@@ -48,6 +48,10 @@ func (s *AuthService) Login(email, password string) (*LoginResponse, error) {
 		return nil, errors.ErrInvalidCredentials
 	}
 
+	if !targetUser.IsActive || !targetUser.IsConfirmed {
+		return nil, errors.ErrUserNotActive
+	}
+
 	if !s.CheckPasswordHash(password, targetUser.Password) {
 		return nil, errors.ErrInvalidCredentials
 	}
