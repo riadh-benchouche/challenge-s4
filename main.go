@@ -21,7 +21,9 @@ var appRouters = []routers.Router{
 	&routers.AssociationRouter{},
 	&routers.CategoryRouter{},
 	&routers.EventRouter{},
-	// &routers.ChatbotRouter{},
+	&routers.ChatbotRouter{},
+	&routers.MessageRouter{},
+	&routers.WebSocketRouter{},
 }
 
 func main() {

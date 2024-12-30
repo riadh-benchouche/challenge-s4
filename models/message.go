@@ -10,7 +10,7 @@ import (
 type MessageType string
 
 type Message struct {
-	ID        string    `json:"id" gorm:"primaryKey"`
+	ID        string    `json:"id" gorm:"primaryKey" validate:"required"`
 	Content   string    `json:"content" validate:"required,min=10,max=300" faker:"sentence"`
 	CreatedAt time.Time `json:"created_at"`
 

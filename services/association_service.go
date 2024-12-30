@@ -2,8 +2,6 @@ package services
 
 import (
 	"backend/database"
-	"backend/enums"
-	coreErrors "backend/errors"
 	"backend/models"
 	"backend/utils"
 	"errors"
@@ -128,32 +126,13 @@ func (s *AssociationService) GetAssociationEvents(groupID string, pagination uti
 	return &pagination, nil
 }
 
-func (s *AssociationService) JoinAssociationByCode(userID string, code string) (*models.Association, error) {
-	var association models.Association
-	err := database.CurrentDatabase.Where("code = ?", code).First(&association).Error
-
-	if err != nil {
-		return nil, coreErrors.ErrAssociationNotFound
-	}
-
-	var membership models.Membership
-
-	err = database.CurrentDatabase.Where("user_id = ? AND association_id = ?", userID, association.ID).First(&membership).Error
-	if err == nil {
-		return nil, coreErrors.ErrAlreadyJoined
-	}
-
-	NewMembership := models.Membership{
-		UserID:        userID,
-		AssociationID: association.ID,
-		JoinedAt:      time.Now(),
-		Status:        enums.Accepted,
-	}
-
-	err = database.CurrentDatabase.Create(&NewMembership).Error
+func (s *AssociationService) SearchAssociations(keyword string) ([]models.Association, error) {
+	var associations []models.Association
+	err := database.CurrentDatabase.
+		Where("name ILIKE ? OR description ILIKE ?", "%"+keyword+"%", "%"+keyword+"%").
+		Find(&associations).Error
 	if err != nil {
 		return nil, err
 	}
-
-	return &association, nil
+	return associations, nil
 }
