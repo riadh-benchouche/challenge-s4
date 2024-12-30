@@ -18,8 +18,8 @@ type Participation struct {
 	EventID string `json:"event_id" gorm:"primaryKey" faker:"-"`
 
 	// Relationships
-	User  *User  `gorm:"foreignkey:UserID" json:"user" faker:"-"`
-	Event *Event `gorm:"foreignkey:EventID" json:"event,omitempty" faker:"-"`
+	User  *User  `gorm:"foreignKey:UserID" json:"user" faker:"-"`
+	Event *Event `gorm:"foreignKey:EventID" json:"event,omitempty" faker:"-"`
 }
 
 func (p *Participation) BeforeCreate(tx *gorm.DB) (err error) {

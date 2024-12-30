@@ -21,9 +21,9 @@ type Event struct {
 	AssociationID string `json:"association_id" validate:"required" faker:"-"`
 
 	// Relationships
-	Category       Category        `gorm:"foreignkey:CategoryID" json:"-" validate:"-" faker:"-"`
-	Association    Association     `gorm:"foreignkey:AssociationID" json:"-" validate:"-" faker:"-"`
-	Participations []Participation `gorm:"foreignkey:EventID" json:"participations,omitempty" faker:"-"`
+	Category       Category        `gorm:"foreignKey:CategoryID" json:"category" validate:"-" faker:"-"`
+	Association    Association     `gorm:"foreignKey:AssociationID" json:"association" validate:"-" faker:"-"`
+	Participations []Participation `gorm:"foreignKey:EventID" json:"participations,omitempty" faker:"-"`
 	User           []User          `gorm:"many2many:participations;joinForeignKey:EventID;joinReferences:UserID" json:"users" faker:"-"`
 }
 

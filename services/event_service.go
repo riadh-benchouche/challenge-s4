@@ -56,7 +56,7 @@ func (s *EventService) GetEvents(pagination utils.Pagination, search *string) (*
 
 func (s *EventService) GetEventById(id string) (*models.Event, error) {
 	var event models.Event
-	if err := database.CurrentDatabase.First(&event, "id = ?", id).Error; err != nil {
+	if err := database.CurrentDatabase.Preload("Category").Preload("Association").First(&event, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &event, nil
