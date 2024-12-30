@@ -1,33 +1,29 @@
 package services
 
 import (
+	"backend/models"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 )
 
-// ChatService représente le service qui interagit avec l'API OpenAI
-type ChatService struct {
-}
+type ChatService struct{}
 
-// NewChatService crée une nouvelle instance de ChatService avec la clé API
 func NewChatService() *ChatService {
 	return &ChatService{}
 }
 
-// ChatRequest représente la requête envoyée au chatbot
 type ChatRequest struct {
 	Message string `json:"message"`
 }
 
-// ChatResponse représente la réponse du service
 type ChatResponse struct {
 	Response string `json:"response"`
 }
 
-// OpenAIResponse représente la structure de la réponse de l'API OpenAI
 type OpenAIResponse struct {
 	Choices []struct {
 		Message struct {
@@ -36,13 +32,31 @@ type OpenAIResponse struct {
 	} `json:"choices"`
 }
 
-// GetChatGPTResponse envoie un message à l'API OpenAI et retourne la réponse
-func (cs *ChatService) GetChatGPTResponse(message string) (string, error) {
+func (cs *ChatService) GetChatGPTResponse(message string, dbData []models.Association) (string, error) {
 	url := "https://api.openai.com/v1/chat/completions"
+
+	// Formatez les données de la base à intégrer
+	dbInfo := "Voici les associations disponibles en lien avec votre requête:\n"
+	for _, assoc := range dbData {
+		dbInfo += fmt.Sprintf("- %s : %s\n", assoc.Name, assoc.Description)
+	}
+
+	// Prépare la requête
 	reqBody := map[string]interface{}{
-		"model": "gpt-3.5-turbo", // ou "gpt-4" selon l'accès
+		"model": "gpt-3.5-turbo",
 		"messages": []map[string]string{
-			{"role": "user", "content": message},
+			{
+				"role":    "system",
+				"content": "Tu es un assistant pour les étudiants de l'ESGI, qui répond selon les données d'association fournies.",
+			},
+			{
+				"role":    "assistant",
+				"content": dbInfo,
+			},
+			{
+				"role":    "user",
+				"content": message,
+			},
 		},
 	}
 	reqBytes, err := json.Marshal(reqBody)
@@ -50,15 +64,19 @@ func (cs *ChatService) GetChatGPTResponse(message string) (string, error) {
 		return "", fmt.Errorf("failed to encode request body: %v", err)
 	}
 
-	// Crée la requête HTTP
+	// HTTP POST
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(reqBytes))
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %v", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	//req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", cs.APIKey))
 
-	// Exécute la requête
+	apiKey := os.Getenv("OPENAI_API_KEY")
+	if apiKey == "" {
+		return "", fmt.Errorf("API key is missing. Please set the OPENAI_API_KEY environment variable")
+	}
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -70,7 +88,7 @@ func (cs *ChatService) GetChatGPTResponse(message string) (string, error) {
 		return "", fmt.Errorf("API error: %s", resp.Status)
 	}
 
-	// Lit et décode la réponse
+	// Parse la réponse
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("failed to read response body: %v", err)
@@ -81,7 +99,6 @@ func (cs *ChatService) GetChatGPTResponse(message string) (string, error) {
 		return "", fmt.Errorf("failed to decode response: %v", err)
 	}
 
-	// Vérifie et renvoie le contenu de la réponse
 	if len(result.Choices) > 0 {
 		return result.Choices[0].Message.Content, nil
 	}

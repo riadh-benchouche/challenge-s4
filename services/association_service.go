@@ -122,3 +122,14 @@ func (s *AssociationService) GetAssociationEvents(groupID string, pagination uti
 
 	return &pagination, nil
 }
+
+func (s *AssociationService) SearchAssociations(keyword string) ([]models.Association, error) {
+	var associations []models.Association
+	err := database.CurrentDatabase.
+		Where("name ILIKE ? OR description ILIKE ?", "%"+keyword+"%", "%"+keyword+"%").
+		Find(&associations).Error
+	if err != nil {
+		return nil, err
+	}
+	return associations, nil
+}
