@@ -44,6 +44,9 @@ func (c *AuthController) Login(ctx echo.Context) error {
 		if errors.Is(err, coreErrors.ErrInvalidCredentials) {
 			return ctx.String(http.StatusUnauthorized, "Invalid credentials")
 		}
+		if errors.Is(err, coreErrors.ErrUserNotActive) {
+			return ctx.String(http.StatusForbidden, "User is not active")
+		}
 		ctx.Logger().Error(err)
 		return ctx.NoContent(http.StatusInternalServerError)
 	}

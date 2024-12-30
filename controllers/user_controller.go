@@ -257,6 +257,10 @@ func (c *UserController) GetUserAssociations(ctx echo.Context) error {
 		associationResources[i] = resources.NewAssociationResource(association)
 	}
 
+	if len(associationResources) == 0 {
+		return ctx.JSONPretty(http.StatusNoContent, "Aucune association trouvée", " ")
+	}
+
 	return ctx.JSON(http.StatusOK, associationResources)
 }
 
@@ -353,6 +357,22 @@ func (c *UserController) GetUserEvents(ctx echo.Context) error {
 	pagination := utils.PaginationFromContext(ctx)
 
 	events, err := c.UserService.GetUserEvents(user.ID, pagination)
+	if err != nil {
+		return ctx.NoContent(http.StatusInternalServerError)
+	}
+
+	return ctx.JSON(http.StatusOK, events)
+}
+
+func (c *UserController) GetAssociationsEvents(ctx echo.Context) error {
+	user, ok := ctx.Get("user").(models.User)
+	if !ok || user.ID == "" {
+		return ctx.NoContent(http.StatusUnauthorized)
+	}
+
+	pagination := utils.PaginationFromContext(ctx)
+
+	events, err := c.UserService.GetAssociationsEvents(user.ID, pagination)
 	if err != nil {
 		return ctx.NoContent(http.StatusInternalServerError)
 	}

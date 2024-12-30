@@ -173,6 +173,8 @@ func (s *UserService) GetUserEvents(userID string, pagination utils.Pagination) 
 		Where("participations.user_id = ?", userID).
 		Where("date >= ?", time.Now().Format(models.DateFormat)).
 		Preload("Participants").
+		Preload("Category").
+		Preload("Association").
 		Order("date")
 
 	query.Scopes(utils.Paginate(events, &pagination, query)).Find(&events)
@@ -180,4 +182,50 @@ func (s *UserService) GetUserEvents(userID string, pagination utils.Pagination) 
 	pagination.Rows = events
 
 	return &pagination, nil
+}
+
+func (s *UserService) GetAssociationsEvents(userID string, pagination utils.Pagination) (*utils.Pagination, error) {
+	var memberships []models.Membership
+	query := database.CurrentDatabase.
+		Where("user_id = ?", userID).
+		Preload("Association.Events")
+
+	err := query.Find(&memberships).Error
+	if err != nil {
+		return nil, err
+	}
+
+	var events []models.Event
+	for _, membership := range memberships {
+		for _, event := range membership.Association.Events {
+			events = append(events, event)
+		}
+	}
+
+	eventIDs := getEventIDs(events)
+
+	var enrichedEvents []models.Event
+	err = database.CurrentDatabase.
+		Model(&models.Event{}).
+		Preload("Category").
+		Preload("Association").
+		Preload("Participations").
+		Joins("LEFT JOIN participations ON participations.event_id = events.id AND participations.user_id = ?", userID).
+		Where("events.id IN ? AND participations.id IS NULL", eventIDs).
+		Find(&enrichedEvents).Error
+	if err != nil {
+		return nil, err
+	}
+
+	pagination.Rows = enrichedEvents
+	return &pagination, nil
+}
+
+func getEventIDs(events []models.Event) []string {
+	ids := make([]string, len(events))
+	for i, event := range events {
+		ids[i] = event.ID
+		fmt.Printf("Adding ID: %s\n", event.ID) // Débuggons chaque ID
+	}
+	return ids
 }
