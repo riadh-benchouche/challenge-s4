@@ -1,7 +1,6 @@
 package main
 
 import (
-	"backend/config"
 	"backend/database"
 	"backend/routers"
 	"backend/swagger"
@@ -38,14 +37,13 @@ func main() {
 
 	// Middleware CORS
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"*"},
-		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},
-		AllowHeaders: []string{"*"},
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},
+		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
+		AllowCredentials: true,
 	}))
 
-	if err := config.InitRedis(); err != nil {
-		log.Fatal("Failed to connect to Redis:", err)
-	}
+	e.Use(middleware.Logger())
 
 	fmt.Printf("APP_MODE: %s\n", os.Getenv("ENVIRONMENT"))
 

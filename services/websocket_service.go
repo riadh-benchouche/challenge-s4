@@ -2,10 +2,10 @@ package services
 
 import (
 	"backend/database"
+	"backend/enums"
 	"backend/models"
 	"encoding/json"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/gorilla/websocket"
 )
 
@@ -57,21 +57,25 @@ func (s *WebSocketService) HandleWebSocketMessage(msg []byte, user *models.User,
 		return err
 	}
 
-	validate := validator.New()
-	if err := validate.Struct(receivedMessage); err != nil {
+	// Vérifier si l'utilisateur est membre de l'association
+	var membership models.Membership
+	err := database.CurrentDatabase.
+		Where("user_id = ? AND association_id = ? AND status = ?",
+			user.ID, receivedMessage.AssociationID, enums.Accepted).
+		First(&membership).Error
+	if err != nil {
 		return err
 	}
 
-	// Ajouter l'ID de l'expéditeur au modèle reçu
+	// Ajouter l'ID de l'expéditeur
 	receivedMessage.SenderID = user.ID
 
-	// Créer un message
+	// Créer et diffuser le message
 	createdMessage, err := s.messageService.CreateMessage(receivedMessage)
 	if err != nil {
 		return err
 	}
 
-	// Diffuser le message
 	return s.BroadcastToAssociation(createdMessage.AssociationID, createdMessage)
 }
 
