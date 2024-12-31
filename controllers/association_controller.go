@@ -96,7 +96,10 @@ func (c *AssociationController) GetAllAssociations(ctx echo.Context) error {
 	if len(params) > 0 {
 		err := json.Unmarshal([]byte(params), &filters)
 		if err != nil {
-			return ctx.NoContent(http.StatusBadRequest)
+			// Retourner une erreur appropriée au lieu d'utiliser des variables non déclarées
+			return ctx.JSON(http.StatusBadRequest, map[string]interface{}{
+				"error": "Invalid filter format",
+			})
 		}
 	}
 
@@ -116,12 +119,12 @@ func (c *AssociationController) GetAllAssociations(ctx echo.Context) error {
 
 	pagination := utils.PaginationFromContext(ctx)
 
-	associations, err := c.AssociationService.GetAllAssociations(pagination, filters...)
+	result, err := c.AssociationService.GetAllAssociations(pagination, filters...)
 	if err != nil {
 		return ctx.NoContent(http.StatusInternalServerError)
 	}
 
-	return ctx.JSON(http.StatusOK, associations)
+	return ctx.JSON(http.StatusOK, result)
 }
 
 func (c *AssociationController) UploadProfileImage(ctx echo.Context) error {

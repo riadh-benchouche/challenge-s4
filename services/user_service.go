@@ -1,12 +1,14 @@
 package services
 
 import (
+	"backend/config"
 	"backend/database"
 	"backend/enums"
 	"backend/errors"
 	"backend/models"
 	"backend/resources"
 	"backend/utils"
+	"context"
 	"fmt"
 	"time"
 
@@ -38,8 +40,26 @@ func (s *UserService) AddUser(user models.User) (*models.User, error) {
 	}
 	user.PlainPassword = nil
 
+	// Gérer la vérification d'email avec Redis
+	verificationToken := utils.GenerateULID()
+	ctx := context.Background()
+
+	// Stocker le token dans Redis
+	err = config.RedisClient.Set(ctx,
+		"email_verification:"+verificationToken,
+		user.Email,
+		24*time.Hour).Err()
+	if err != nil {
+		return nil, err
+	}
+
+	user.IsActive = false
+	user.EmailVerifiedAt = nil
+
 	create := database.CurrentDatabase.Create(&user)
 	if create.Error != nil {
+		// En cas d'erreur, nettoyer Redis
+		config.RedisClient.Del(ctx, "email_verification:"+verificationToken)
 		return nil, create.Error
 	}
 
@@ -118,12 +138,40 @@ func (s *UserService) UpdateUser(id string, user models.User) (*models.User, err
 		user.PlainPassword = nil
 	}
 
+	// Si l'email est modifié, réinitialiser la vérification
+	var currentUser models.User
+	if err := database.CurrentDatabase.First(&currentUser, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+
+	if user.Email != currentUser.Email {
+		// Générer un nouveau token dans Redis
+		verificationToken := utils.GenerateULID()
+		ctx := context.Background()
+
+		err = config.RedisClient.Set(ctx,
+			"email_verification:"+verificationToken,
+			user.Email,
+			24*time.Hour).Err()
+		if err != nil {
+			return nil, err
+		}
+
+		user.EmailVerifiedAt = nil
+		user.IsActive = false
+	}
+
 	err = database.CurrentDatabase.Model(&models.User{}).Where("id = ?", id).Updates(&user).Error
 	if err != nil {
 		return nil, err
 	}
 
-	return &user, nil
+	var updatedUser models.User
+	if err := database.CurrentDatabase.First(&updatedUser, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+
+	return &updatedUser, nil
 }
 
 func (s *UserService) JoinAssociation(userID, associationID, code string) (bool, error) {
@@ -164,6 +212,8 @@ type UserFilter struct {
 	database.Filter
 	Column string `json:"column" validate:"required,oneof=name email"`
 }
+
+
 
 func (s *UserService) GetUserEvents(userID string, pagination utils.Pagination) (*utils.Pagination, error) {
 	var events []models.Event
@@ -229,3 +279,4 @@ func getEventIDs(events []models.Event) []string {
 	}
 	return ids
 }
+

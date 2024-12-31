@@ -9,6 +9,7 @@ import (
 )
 
 type User struct {
+
 	ID            string     `json:"id" gorm:"primaryKey" validate:"required"`
 	Name          string     `json:"name" validate:"required,min=2,max=50" faker:"name"`
 	Email         string     `gorm:"uniqueIndex:idx_email_deleted_at" json:"email" validate:"email,required" faker:"email"`
@@ -20,8 +21,9 @@ type User struct {
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at"`
 	ImageURL      string     `json:"image_url" faker:"url"`
+  EmailVerifiedAt *time.Time `json:"email_verified_at" gorm:"index"`
 
-	// Relationships
+
 	AssociationsOwned []Association   `json:"associations_owned" gorm:"foreignKey:OwnerID" faker:"-"`
 	Memberships       []Membership    `json:"memberships" gorm:"foreignKey:UserID" faker:"-"`
 	Associations      []Association   `gorm:"many2many:memberships;joinForeignKey:UserID;joinReferences:AssociationID" json:"associations" faker:"-"`
@@ -33,4 +35,8 @@ func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
 	u.ID = utils.GenerateULID()
 	u.CreatedAt = time.Now()
 	return nil
+}
+
+func (u *User) IsEmailVerified() bool {
+	return u.EmailVerifiedAt != nil
 }

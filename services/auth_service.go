@@ -1,16 +1,22 @@
 package services
 
 import (
+	"context"
+	"fmt"
+	"os"
+	"strings"
+	"time"
+
+	"backend/config"
 	"backend/database"
 	"backend/errors"
 	"backend/models"
 	"backend/requests"
 	"backend/resources"
 	"backend/utils"
-	"os"
-	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -56,6 +62,10 @@ func (s *AuthService) Login(email, password string) (*LoginResponse, error) {
 		return nil, errors.ErrInvalidCredentials
 	}
 
+	if !targetUser.IsActive || targetUser.EmailVerifiedAt == nil {
+		return nil, errors.ErrEmailNotVerified
+	}
+
 	jwtSecret, ok := os.LookupEnv("JWT_KEY")
 	if !ok {
 		return nil, errors.ErrInternal
@@ -80,21 +90,53 @@ func (s *AuthService) Login(email, password string) (*LoginResponse, error) {
 	return &LoginResponse{Token: token, User: targetUser}, nil
 }
 
-func (s *AuthService) Register(Request requests.RegisterRequest) (*RegisterResponse, error) {
-	hashedPassword, err := s.HashPassword(Request.Password)
+func (s *AuthService) Register(request requests.RegisterRequest) (*RegisterResponse, error) {
+	ctx := context.Background()
+
+	// Test de la connexion Redis
+	pong, err := config.RedisClient.Ping(ctx).Result()
 	if err != nil {
+		fmt.Printf(" Redis connection error: %v\n", err)
+		return nil, errors.ErrInternal
+	}
+	fmt.Printf("🔄 Redis connection test: %v\n", pong)
+
+	// Vérifier si l'email existe déjà
+	var existingUser models.User
+	if result := database.CurrentDatabase.Where("email = ?", request.Email).First(&existingUser); result.Error == nil {
+		return nil, errors.ErrEmailAlreadyExists
+	}
+
+	hashedPassword, err := s.HashPassword(request.Password)
+	if err != nil {
+		return nil, errors.ErrInternal
+	}
+
+	// Génération du token de vérification
+	verificationToken := utils.GenerateULID()
+	key := fmt.Sprintf("email_verification:%s", verificationToken)
+
+	// Stockage dans Redis (expire après 24h)
+	err = config.RedisClient.Set(ctx, key, request.Email, 24*time.Hour).Err()
+	if err != nil {
+		fmt.Printf(" Redis error setting token: %v\n", err)
 		return nil, errors.ErrInternal
 	}
 
 	newUser := models.User{
 		ID:       utils.GenerateULID(),
-		Name:     Request.Name,
-		Email:    Request.Email,
+		Name:     request.Name,
+		Email:    request.Email,
 		Password: hashedPassword,
 		Role:     "user",
+		IsActive: false,
 	}
 
-	database.CurrentDatabase.Create(&newUser)
+	if err := database.CurrentDatabase.Create(&newUser).Error; err != nil {
+		config.RedisClient.Del(ctx, key)
+		return nil, errors.ErrInternal
+	}
+
 	jwtSecret, ok := os.LookupEnv("JWT_KEY")
 	if !ok {
 		return nil, errors.ErrInternal
@@ -112,7 +154,77 @@ func (s *AuthService) Register(Request requests.RegisterRequest) (*RegisterRespo
 	}
 
 	userResource := resources.NewUserResource(newUser)
+	userResource.VerificationToken = verificationToken
 	return &RegisterResponse{User: userResource, Token: token}, nil
+}
+
+func (s *AuthService) ConfirmEmail(token string) error {
+	ctx := context.Background()
+
+	if token == "" {
+		fmt.Printf(" Token is empty\n")
+		return errors.ErrInvalidToken
+	}
+
+	token = strings.TrimSpace(token)
+	key := fmt.Sprintf("email_verification:%s", token)
+
+	// Récupération de l'email associé au token
+	email, err := config.RedisClient.Get(ctx, key).Result()
+	if err == redis.Nil {
+		fmt.Printf(" Token not found in Redis: %s\n", token)
+		return errors.ErrInvalidToken
+	} else if err != nil {
+		fmt.Printf(" Redis error: %v\n", err)
+		return errors.ErrInternal
+	}
+
+	// Mise à jour de l'utilisateur
+	now := time.Now()
+	result := database.CurrentDatabase.Model(&models.User{}).
+		Where("email = ? AND email_verified_at IS NULL", email).
+		Updates(map[string]interface{}{
+			"email_verified_at": now,
+			"is_active":         true,
+		})
+
+	if result.Error != nil {
+		return errors.ErrInternal
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.ErrInvalidToken
+	}
+
+	// Suppression du token utilisé
+	config.RedisClient.Del(ctx, key)
+
+	return nil
+}
+
+func (s *AuthService) ResendConfirmation(email string) error {
+	ctx := context.Background()
+
+	var user models.User
+	result := database.CurrentDatabase.Where(
+		"email = ? AND email_verified_at IS NULL",
+		email,
+	).First(&user)
+
+	if result.Error != nil {
+		return errors.ErrUserNotFound
+	}
+
+	verificationToken := utils.GenerateULID()
+	key := fmt.Sprintf("email_verification:%s", verificationToken)
+
+	err := config.RedisClient.Set(ctx, key, email, 24*time.Hour).Err()
+	if err != nil {
+		return errors.ErrInternal
+	}
+
+	// Le token est généré et stocké, il devra être envoyé par email
+	return nil
 }
 
 func (s *AuthService) ValidateToken(tokenString string) (*jwt.Token, error) {

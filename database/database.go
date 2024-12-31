@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
@@ -90,6 +91,44 @@ func InitDB() (*gorm.DB, error) {
 	return db, nil
 }
 
+func migrateEmailVerification(db *gorm.DB) error {
+	type User struct {
+		EmailVerifiedAt   *time.Time
+		VerificationToken string
+		TokenExpiresAt    *time.Time
+	}
+
+	// Vérifier si les colonnes existent déjà
+	if !db.Migrator().HasColumn(&models.User{}, "email_verified_at") {
+		err := db.Migrator().AddColumn(&models.User{}, "email_verified_at")
+		if err != nil {
+			return fmt.Errorf("failed to add email_verified_at column: %v", err)
+		}
+	}
+
+	if !db.Migrator().HasColumn(&models.User{}, "verification_token") {
+		err := db.Migrator().AddColumn(&models.User{}, "verification_token")
+		if err != nil {
+			return fmt.Errorf("failed to add verification_token column: %v", err)
+		}
+		// Ajouter l'index unique
+		err = db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_verification_token ON users(verification_token) WHERE verification_token IS NOT NULL").Error
+		if err != nil {
+			return fmt.Errorf("failed to create verification_token index: %v", err)
+		}
+	}
+
+	if !db.Migrator().HasColumn(&models.User{}, "token_expires_at") {
+		err := db.Migrator().AddColumn(&models.User{}, "token_expires_at")
+		if err != nil {
+			return fmt.Errorf("failed to add token_expires_at column: %v", err)
+		}
+	}
+
+	fmt.Println("✅ Email verification migration completed")
+	return nil
+}
+
 // CloseDB ferme la connexion à la base de données
 func CloseDB(db *gorm.DB) {
 	fmt.Println("🚨 Closing database connection...")
@@ -101,4 +140,38 @@ func CloseDB(db *gorm.DB) {
 	if err := sqlDB.Close(); err != nil {
 		fmt.Println("Error closing DB:", err)
 	}
+}
+func InitTestDB() (*gorm.DB, error) {
+	fmt.Println("🚀 Initializing test database...")
+
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		return nil, fmt.Errorf("DATABASE_URL is required for tests")
+	}
+
+	db, err := gorm.Open(postgres.Open(dbURL), &gorm.Config{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to test database: %v", err)
+	}
+
+	// Test la connexion
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get test database instance: %v", err)
+	}
+
+	if err := sqlDB.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to ping test database: %v", err)
+	}
+
+	// Migration
+	if err := db.AutoMigrate(Models...); err != nil {
+		return nil, fmt.Errorf("failed to run test migrations: %v", err)
+	}
+
+	// Assigner à la variable globale
+	CurrentDatabase = db
+	fmt.Println("✅ Test database connected and migrated successfully!")
+
+	return db, nil
 }
