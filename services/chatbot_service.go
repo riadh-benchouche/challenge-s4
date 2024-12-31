@@ -1,6 +1,7 @@
 package services
 
 import (
+	"backend/database"
 	"backend/models"
 	"bytes"
 	"encoding/json"
@@ -103,4 +104,15 @@ func (cs *ChatService) GetChatGPTResponse(message string, dbData []models.Associ
 		return result.Choices[0].Message.Content, nil
 	}
 	return "", fmt.Errorf("empty response from ChatGPT")
+}
+
+func (s *AssociationService) SearchAssociations(keyword string) ([]models.Association, error) {
+	var associations []models.Association
+	err := database.CurrentDatabase.
+		Where("name ILIKE ? OR description ILIKE ?", "%"+keyword+"%", "%"+keyword+"%").
+		Find(&associations).Error
+	if err != nil {
+		return nil, err
+	}
+	return associations, nil
 }
