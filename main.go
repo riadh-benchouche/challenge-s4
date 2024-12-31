@@ -38,6 +38,7 @@ func main() {
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"*"},
 		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},
+		AllowHeaders: []string{"*"},
 	}))
 
 	if err := config.InitRedis(); err != nil {
@@ -73,7 +74,7 @@ func main() {
 
 	//faker.GenerateFakeData(newDB)
 
-	addr := "0.0.0.0:3001"
+	addr := "0.0.0.0:8080"
 	e.Logger.Fatal(e.Start(addr))
 	fmt.Printf("Listening on %s\n", addr)
 

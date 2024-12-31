@@ -141,3 +141,37 @@ func CloseDB(db *gorm.DB) {
 		fmt.Println("Error closing DB:", err)
 	}
 }
+func InitTestDB() (*gorm.DB, error) {
+	fmt.Println("🚀 Initializing test database...")
+
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		return nil, fmt.Errorf("DATABASE_URL is required for tests")
+	}
+
+	db, err := gorm.Open(postgres.Open(dbURL), &gorm.Config{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to test database: %v", err)
+	}
+
+	// Test la connexion
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get test database instance: %v", err)
+	}
+
+	if err := sqlDB.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to ping test database: %v", err)
+	}
+
+	// Migration
+	if err := db.AutoMigrate(Models...); err != nil {
+		return nil, fmt.Errorf("failed to run test migrations: %v", err)
+	}
+
+	// Assigner à la variable globale
+	CurrentDatabase = db
+	fmt.Println("✅ Test database connected and migrated successfully!")
+
+	return db, nil
+}
