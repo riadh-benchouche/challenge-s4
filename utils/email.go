@@ -7,6 +7,7 @@ import (
 	"gopkg.in/gomail.v2"
 )
 
+
 type EmailConfig struct {
 	Sender     string
 	Identifier string
@@ -51,6 +52,7 @@ func SendEmail(to, subject, body string) error {
 	m.SetBody("text/html", body)
 
 	// Configurer le serveur SMTP
+
 	d := gomail.NewDialer(config.Host, config.Port, config.Identifier, config.Password)
 
 	// Envoyer l'email
@@ -81,4 +83,5 @@ func SendEmailWithRetry(to, subject, body string, maxRetries int) error {
 func ValidateEmail(email string) bool {
 	// TODO: Implémenter la validation d'email si nécessaire
 	return email != ""
+
 }

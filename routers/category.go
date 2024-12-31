@@ -16,7 +16,7 @@ func (r *CategoryRouter) SetupRoutes(e *echo.Echo) {
 
 	categoryGroup.POST("", categoryController.CreateCategory, middlewares.AuthenticationMiddleware())
 	categoryGroup.GET("", categoryController.GetCategories, middlewares.AuthenticationMiddleware())
-	// categoryGroup.GET("/:id", categoryController.GetCategoryByID)
-	// categoryGroup.PUT("/:id", categoryController.UpdateCategory, middlewares.AuthenticationMiddleware())
-	// categoryGroup.DELETE("/:id", categoryController.DeleteCategory, middlewares.AuthenticationMiddleware())
+	categoryGroup.GET("/:id", categoryController.GetCategoryById, middlewares.AuthenticationMiddleware())
+	categoryGroup.PUT("/:id", categoryController.UpdateCategory, middlewares.AuthenticationMiddleware())
+	categoryGroup.DELETE("/:id", categoryController.DeleteCategory, middlewares.AuthenticationMiddleware())
 }

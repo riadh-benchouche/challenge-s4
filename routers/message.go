@@ -2,17 +2,20 @@ package routers
 
 import (
 	"backend/controllers"
+	"backend/middlewares"
 
 	"github.com/labstack/echo/v4"
 )
 
-func SetupMessageRoutes(e *echo.Echo, controller *controllers.MessageController) {
+type MessageRouter struct{}
 
-	api := e.Group("/api")
+func (r *MessageRouter) SetupRoutes(e *echo.Echo) {
+	messageController := controllers.NewMessageController()
 
-	api.POST("/messages", controller.Create)
-	api.GET("/messages", controller.GetAll)
-	api.GET("/messages/:id", controller.GetByID)
-	api.PUT("/messages/:id", controller.Update)
-	api.DELETE("/messages/:id", controller.Delete)
+	messageGroup := e.Group("/messages", middlewares.AuthenticationMiddleware())
+
+	messageGroup.POST("", messageController.CreateMessage)
+	messageGroup.GET("/association/:associationId", messageController.GetMessagesByAssociation)
+	messageGroup.PUT("/:id", messageController.UpdateMessage)
+	messageGroup.DELETE("/:id", messageController.DeleteMessage)
 }

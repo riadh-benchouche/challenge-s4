@@ -8,9 +8,9 @@ import (
 	"backend/services"
 	"backend/utils"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
-
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 )
@@ -44,10 +44,12 @@ func (c *AuthController) Login(ctx echo.Context) error {
 		if err == errors.ErrInvalidCredentials {
 			return ctx.String(http.StatusUnauthorized, "Invalid credentials")
 		}
+
 		if err == errors.ErrEmailNotVerified {
 			return ctx.JSON(http.StatusUnauthorized, map[string]string{
 				"error": "Email not verified",
 			})
+
 		}
 		ctx.Logger().Error(err)
 		return ctx.NoContent(http.StatusInternalServerError)
@@ -78,6 +80,7 @@ func (c *AuthController) Register(ctx echo.Context) error {
 		ctx.Logger().Error(err)
 		return ctx.NoContent(http.StatusInternalServerError)
 	}
+
 
 	// Générer le lien de confirmation avec le token
 	confirmationLink := fmt.Sprintf("http://localhost:8080/auth/confirm?token=%s", result.User.VerificationToken)
@@ -154,6 +157,8 @@ func (c *AuthController) Register(ctx echo.Context) error {
    </html>
    `, result.User.Name, confirmationLink, confirmationLink, confirmationLink)
 
+
+	
 	if err := utils.SendEmail(result.User.Email, subject, body); err != nil {
 		ctx.Logger().Error("Erreur lors de l'envoi de l'email :", err)
 		return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": "Unable to send confirmation email"})

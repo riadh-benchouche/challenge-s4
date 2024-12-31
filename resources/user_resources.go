@@ -61,3 +61,29 @@ func NewBasicUserResource(user models.User) BasicUserResource {
 		Role:  string(user.Role),
 	}
 }
+
+type ParticipationResource struct {
+	IsAttending bool              `json:"is_attending"`
+	CreatedAt   string            `json:"created_at"`
+	UpdatedAt   string            `json:"updated_at"`
+	User        BasicUserResource `json:"user"`
+	EventID     string            `json:"event_id"`
+}
+
+func NewParticipationResource(participation models.Participation) ParticipationResource {
+	return ParticipationResource{
+		IsAttending: participation.IsAttending,
+		CreatedAt:   participation.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:   participation.UpdatedAt.Format(time.RFC3339),
+		User:        NewBasicUserResource(*participation.User), // Utilisation de BasicUserResource
+		EventID:     participation.EventID,
+	}
+}
+
+func NewParticipationResourceList(participations []models.Participation) []ParticipationResource {
+	resources := make([]ParticipationResource, len(participations))
+	for i, participation := range participations {
+		resources[i] = NewParticipationResource(participation)
+	}
+	return resources
+}

@@ -130,6 +130,12 @@ func (c *UserController) DeleteUser(ctx echo.Context) error {
 func (c *UserController) FindByID(ctx echo.Context) error {
 	id := ctx.Param("id")
 
+	currentUser := ctx.Get("user").(models.User)
+
+	if currentUser.ID != id && !enums.IsAdmin(currentUser.Role) {
+		return ctx.JSON(http.StatusForbidden, "Vous n'êtes pas autorisé à voir ces informations.")
+	}
+
 	_, err := ulid.Parse(id)
 	if err != nil {
 		return ctx.NoContent(http.StatusBadRequest)
@@ -149,6 +155,7 @@ func (c *UserController) FindByID(ctx echo.Context) error {
 
 func (c *UserController) UpdateUser(ctx echo.Context) error {
 	id := ctx.Param("id")
+
 	if _, err := ulid.Parse(id); err != nil {
 		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid ULID format"})
 	}
@@ -250,6 +257,10 @@ func (c *UserController) GetUserAssociations(ctx echo.Context) error {
 		associationResources[i] = resources.NewAssociationResource(association)
 	}
 
+	if len(associationResources) == 0 {
+		return ctx.JSONPretty(http.StatusNoContent, "Aucune association trouvée", " ")
+	}
+
 	return ctx.JSON(http.StatusOK, associationResources)
 }
 
@@ -335,4 +346,36 @@ func (c *UserController) UploadProfileImage(ctx echo.Context) error {
 	}
 
 	return ctx.JSON(http.StatusOK, map[string]string{"message": "Image uploadée avec succès", "image_url": imagePath})
+}
+
+func (c *UserController) GetUserEvents(ctx echo.Context) error {
+	user, ok := ctx.Get("user").(models.User)
+	if !ok || user.ID == "" {
+		return ctx.NoContent(http.StatusUnauthorized)
+	}
+
+	pagination := utils.PaginationFromContext(ctx)
+
+	events, err := c.UserService.GetUserEvents(user.ID, pagination)
+	if err != nil {
+		return ctx.NoContent(http.StatusInternalServerError)
+	}
+
+	return ctx.JSON(http.StatusOK, events)
+}
+
+func (c *UserController) GetAssociationsEvents(ctx echo.Context) error {
+	user, ok := ctx.Get("user").(models.User)
+	if !ok || user.ID == "" {
+		return ctx.NoContent(http.StatusUnauthorized)
+	}
+
+	pagination := utils.PaginationFromContext(ctx)
+
+	events, err := c.UserService.GetAssociationsEvents(user.ID, pagination)
+	if err != nil {
+		return ctx.NoContent(http.StatusInternalServerError)
+	}
+
+	return ctx.JSON(http.StatusOK, events)
 }

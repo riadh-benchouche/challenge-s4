@@ -2,10 +2,13 @@ package services
 
 import (
 	"backend/database"
+	"backend/enums"
+	coreErrors "backend/errors"
 	"backend/models"
 	"backend/utils"
 	"errors"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -87,4 +90,70 @@ func (s *AssociationService) GetAllAssociations(pagination utils.Pagination, fil
 	pagination.Rows = associations
 
 	return &pagination, nil
+}
+
+func (s *AssociationService) GetNextEvent(groupID string) (*models.Event, error) {
+	var event models.Event
+
+	err := database.CurrentDatabase.
+		Preload("Participations").
+		Where("association_id = ?", groupID).
+		Where("date >= ?", time.Now().Format(models.DateFormat)).
+		Order("date").
+		First(&event).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &event, nil
+}
+
+func (s *AssociationService) GetAssociationEvents(groupID string, pagination utils.Pagination) (*utils.Pagination, error) {
+	var events []models.Event
+
+	query := database.CurrentDatabase.
+		Preload("Participations").
+		Where("association_id = ?", groupID).
+		Where("date >= ?", time.Now().Format(models.DateFormat)).
+		Order("date")
+
+	query.Scopes(utils.Paginate(events, &pagination, query)).
+		Find(&events)
+
+	pagination.Rows = events
+
+	return &pagination, nil
+}
+
+func (s *AssociationService) JoinAssociationByCode(userID string, code string) (*models.Association, error) {
+	var association models.Association
+	err := database.CurrentDatabase.Where("code = ?", code).First(&association).Error
+
+	if err != nil {
+		return nil, coreErrors.ErrAssociationNotFound
+	}
+
+	var membership models.Membership
+
+	err = database.CurrentDatabase.Where("user_id = ? AND association_id = ?", userID, association.ID).First(&membership).Error
+	if err == nil {
+		return nil, coreErrors.ErrAlreadyJoined
+	}
+
+	NewMembership := models.Membership{
+		UserID:        userID,
+		AssociationID: association.ID,
+		JoinedAt:      time.Now(),
+		Status:        enums.Accepted,
+	}
+
+	err = database.CurrentDatabase.Create(&NewMembership).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &association, nil
 }

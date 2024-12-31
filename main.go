@@ -3,7 +3,6 @@ package main
 import (
 	"backend/config"
 	"backend/database"
-	"backend/faker"
 	"backend/routers"
 	"fmt"
 	"os"
@@ -20,6 +19,10 @@ var appRouters = []routers.Router{
 	&routers.AuthRouter{},
 	&routers.AssociationRouter{},
 	&routers.CategoryRouter{},
+	&routers.EventRouter{},
+	&routers.ChatbotRouter{},
+	&routers.MessageRouter{},
+	&routers.WebSocketRouter{},
 }
 
 func main() {
@@ -34,14 +37,19 @@ func main() {
 
 	// Middleware CORS
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"*"},
-		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},
-		AllowHeaders: []string{"*"},
+
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},
+		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
+		AllowCredentials: true,
 	}))
 
-	if err := config.InitRedis(); err != nil {
+  if err := config.InitRedis(); err != nil {
 		log.Fatal("Failed to connect to Redis:", err)
-	}
+	  }
+
+	e.Use(middleware.Logger())
+
 
 	fmt.Printf("APP_MODE: %s\n", os.Getenv("ENVIRONMENT"))
 
@@ -65,7 +73,7 @@ func main() {
 
 	e.Static("/public", "public")
 
-	faker.GenerateFakeData(newDB)
+	// faker.GenerateFakeData(newDB)
 
 	addr := "0.0.0.0:8080"
 	e.Logger.Fatal(e.Start(addr))

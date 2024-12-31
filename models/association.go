@@ -24,6 +24,7 @@ type Association struct {
 	Owner    User      `gorm:"foreignKey:OwnerID" json:"owner" faker:"-"`
 	Members  []User    `gorm:"many2many:memberships;joinForeignKey:AssociationID;joinReferences:UserID" json:"members" faker:"-"`
 	Messages []Message `gorm:"foreignKey:AssociationID" faker:"-"`
+	Events   []Event   `gorm:"foreignKey:AssociationID" faker:"-"`
 }
 
 func (a Association) ToAssociation() *Association {

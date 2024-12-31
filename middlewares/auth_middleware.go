@@ -38,6 +38,10 @@ func AuthenticationMiddleware(roles ...enums.Role) echo.MiddlewareFunc {
 				return c.JSON(http.StatusUnauthorized, "unauthorized")
 			}
 
+			if !existingUser.IsConfirmed || !existingUser.IsActive {
+				return c.JSON(http.StatusUnauthorized, "Votre compte n'est pas actif ou confirmé")
+			}
+
 			if len(roles) > 0 {
 				roleFound := false
 				for _, role := range roles {

@@ -15,10 +15,11 @@ func (r *AssociationRouter) SetupRoutes(e *echo.Echo) {
 
 	group := e.Group("/associations")
 
-	group.GET("/", associationController.GetAllAssociations, middlewares.AuthenticationMiddleware(enums.AdminRole))
+	group.GET("", associationController.GetAllAssociations, middlewares.AuthenticationMiddleware())
 	group.GET("/:associationId", associationController.GetAssociationById, middlewares.AuthenticationMiddleware(), middlewares.AssociationMembershipMiddleware)
-	group.POST("", associationController.CreateAssociation, middlewares.AuthenticationMiddleware())
+	group.POST("", associationController.CreateAssociation, middlewares.AuthenticationMiddleware(enums.AssociationLeaderRole))
 	group.POST("/:id/upload-image", associationController.UploadProfileImage, middlewares.AuthenticationMiddleware())
-	// group.GET("/:groupId/next-event", groupController.GetNextEvent, middlewares.AuthenticationMiddleware(), middlewares.GroupMembershipMiddleware)
-	// group.GET("/:groupId/events", groupController.GetGroupEvents, middlewares.AuthenticationMiddleware(), middlewares.GroupMembershipMiddleware)
+	group.GET("/:associationId/next-event", associationController.GetNextEvent, middlewares.AuthenticationMiddleware(), middlewares.AssociationMembershipMiddleware)
+	group.GET("/:associationId/events", associationController.GetAssociationEvents, middlewares.AuthenticationMiddleware(), middlewares.AssociationMembershipMiddleware)
+	group.POST("/join/:code", associationController.JoinAssociation, middlewares.AuthenticationMiddleware())
 }
