@@ -91,7 +91,7 @@ func (s *AuthService) Register(request requests.RegisterRequest) (*RegisterRespo
 	// Test de la connexion Redis
 	pong, err := config.RedisClient.Ping(ctx).Result()
 	if err != nil {
-		fmt.Printf("❌ Redis connection error: %v\n", err)
+		fmt.Printf(" Redis connection error: %v\n", err)
 		return nil, errors.ErrInternal
 	}
 	fmt.Printf("🔄 Redis connection test: %v\n", pong)
@@ -114,7 +114,7 @@ func (s *AuthService) Register(request requests.RegisterRequest) (*RegisterRespo
 	// Stockage dans Redis (expire après 24h)
 	err = config.RedisClient.Set(ctx, key, request.Email, 24*time.Hour).Err()
 	if err != nil {
-		fmt.Printf("❌ Redis error setting token: %v\n", err)
+		fmt.Printf(" Redis error setting token: %v\n", err)
 		return nil, errors.ErrInternal
 	}
 
@@ -157,7 +157,7 @@ func (s *AuthService) ConfirmEmail(token string) error {
 	ctx := context.Background()
 
 	if token == "" {
-		fmt.Printf("❌ Token is empty\n")
+		fmt.Printf(" Token is empty\n")
 		return errors.ErrInvalidToken
 	}
 
@@ -167,10 +167,10 @@ func (s *AuthService) ConfirmEmail(token string) error {
 	// Récupération de l'email associé au token
 	email, err := config.RedisClient.Get(ctx, key).Result()
 	if err == redis.Nil {
-		fmt.Printf("❌ Token not found in Redis: %s\n", token)
+		fmt.Printf(" Token not found in Redis: %s\n", token)
 		return errors.ErrInvalidToken
 	} else if err != nil {
-		fmt.Printf("❌ Redis error: %v\n", err)
+		fmt.Printf(" Redis error: %v\n", err)
 		return errors.ErrInternal
 	}
 

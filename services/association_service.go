@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/go-playground/validator/v10"
 	"gorm.io/gorm"
 )
 
@@ -16,13 +15,17 @@ type AssociationService struct {
 }
 
 func NewAssociationService() *AssociationService {
-	return &AssociationService{}
+	if database.CurrentDatabase == nil {
+		return nil
+	}
+	return &AssociationService{
+		db: database.CurrentDatabase,
+	}
 }
 
 func (s *AssociationService) CreateAssociation(association models.Association) (*models.Association, error) {
-	validate := validator.New(validator.WithRequiredStructEnabled())
-	if err := validate.Struct(association); err != nil {
-		return nil, err
+	if s.db == nil {
+		return nil, fmt.Errorf("database connection is nil")
 	}
 
 	newAssociation := association.ToAssociation()
