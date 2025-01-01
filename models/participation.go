@@ -9,7 +9,7 @@ import (
 
 type Participation struct {
 	ID          string    `json:"id" gorm:"primaryKey" validate:"required"`
-	IsAttending bool      `json:"is_attending" gorm:"default:false" validate:"-" faker:"bool"`
+	IsAttending bool      `json:"is_attending" gorm:"default:false" validate:"-" faker:"-"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 
