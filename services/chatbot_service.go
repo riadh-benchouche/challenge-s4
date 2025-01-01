@@ -33,7 +33,7 @@ type OpenAIResponse struct {
 	} `json:"choices"`
 }
 
-func (cs *ChatService) GetChatGPTResponse(message string, dbData []models.Association) (string, error) {
+func (cs *ChatService) GetChatGPTResponse(message string, dbData []models.AssociationSummary) (string, error) {
 	url := "https://api.openai.com/v1/chat/completions"
 
 	// Formatez les données de la base à intégrer
@@ -106,12 +106,12 @@ func (cs *ChatService) GetChatGPTResponse(message string, dbData []models.Associ
 	return "", fmt.Errorf("empty response from ChatGPT")
 }
 
-func (s *AssociationService) SearchAssociations(keyword string) ([]models.Association, error) {
-	var associations []models.Association
-	err := database.CurrentDatabase.
-		Where("name ILIKE ? OR description ILIKE ?", "%"+keyword+"%", "%"+keyword+"%").
-		Find(&associations).Error
-	if err != nil {
+func (as *AssociationService) SearchAssociations() ([]models.AssociationSummary, error) {
+	var associations []models.AssociationSummary
+	if err := database.CurrentDatabase.
+		Table("associations").
+		Select("name, description").
+		Find(&associations).Error; err != nil {
 		return nil, err
 	}
 	return associations, nil

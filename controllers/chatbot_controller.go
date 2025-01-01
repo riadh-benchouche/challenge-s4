@@ -19,23 +19,19 @@ func NewChatbotController() *ChatbotController {
 }
 
 func (cc *ChatbotController) ChatHandler(c echo.Context) error {
-	fmt.Println("ChatHandler reached")
-
 	var chatReq services.ChatRequest
 	if err := c.Bind(&chatReq); err != nil {
 		fmt.Println("Error binding request:", err)
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request payload"})
 	}
 
-	// Recherche dans la base de données
 	assocService := services.NewAssociationService()
-	dbData, err := assocService.SearchAssociations(chatReq.Message)
+	dbData, err := assocService.SearchAssociations()
 	if err != nil {
 		fmt.Println("Error searching associations:", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error searching associations"})
 	}
 
-	// Obtenez une réponse de ChatGPT enrichie
 	response, err := cc.ChatService.GetChatGPTResponse(chatReq.Message, dbData)
 	if err != nil {
 		fmt.Println("Error getting ChatGPT response:", err)
