@@ -67,8 +67,11 @@ func main() {
 
 	faker.GenerateFakeData(newDB)
 
-	addr := "0.0.0.0:8080"
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080" // Port par défaut si non défini
+	}
+	addr := fmt.Sprintf("0.0.0.0:%s", port)
 	e.Logger.Fatal(e.Start(addr))
 	fmt.Printf("Listening on %s\n", addr)
-
 }
