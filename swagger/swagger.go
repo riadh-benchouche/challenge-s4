@@ -16,6 +16,12 @@ func SetupSwagger() *swag.API {
 	// Ajouter les endpoints pour chaque modèle
 	SetupAssociationSwagger(api)
 	SetupUserSwagger(api)
+	SetupCategorySwagger(api)
+	SetupEventSwagger(api)
+	SetupMessageSwagger(api)
+	SetupAuthSwagger(api)
+	SetupChatbotSwagger(api)
+	SetupHomeSwagger(api)
 	// Ajouter d'autres endpoints ici pour d'autres modèles
 
 	return api
