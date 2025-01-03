@@ -8,14 +8,10 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo/v4 v4.13.3
+	github.com/labstack/echo/v4 v4.13.3
 	github.com/labstack/gommon v0.4.2
 	github.com/oklog/ulid/v2 v2.1.0
-	github.com/redis/go-redis/v9 v9.7.0
-	github.com/stretchr/testify v1.8.4
-	github.com/stretchr/testify v1.10.0
-	github.com/zc2638/swag v1.14.0
-	golang.org/x/crypto v0.31.0
-	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
+	golang.org/x/crypto v0.28.0
 	gorm.io/driver/postgres v1.5.9
 	gorm.io/gorm v1.25.12
 )
