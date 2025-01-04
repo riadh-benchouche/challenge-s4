@@ -39,6 +39,11 @@ func (a Association) ToAssociation() *Association {
 	}
 }
 
+type AssociationSummary struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
 func (a *Association) BeforeCreate(tx *gorm.DB) (err error) {
 	a.ID = utils.GenerateULID()
 	a.Code = utils.GenerateAssociationCode()
