@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"backend/database"
-	"backend/errors"
+	coreErrors "backend/errors"
 	"backend/models"
 	"backend/requests"
 	"backend/services"
@@ -10,9 +10,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
+	"net/http"
 )
 
 type AuthController struct {
@@ -41,11 +41,11 @@ func (c *AuthController) Login(ctx echo.Context) error {
 
 	result, err := c.authService.Login(jsonBody.Email, jsonBody.Password)
 	if err != nil {
-		if err == errors.ErrInvalidCredentials {
+		if errors.Is(err, coreErrors.ErrInvalidCredentials) {
 			return ctx.String(http.StatusUnauthorized, "Invalid credentials")
 		}
 
-		if err == errors.ErrEmailNotVerified {
+		if errors.Is(err, coreErrors.ErrEmailNotVerified) {
 			return ctx.JSON(http.StatusUnauthorized, map[string]string{
 				"error": "Email not verified",
 			})
@@ -74,16 +74,15 @@ func (c *AuthController) Register(ctx echo.Context) error {
 
 	result, err := c.authService.Register(jsonBody)
 	if err != nil {
-		if err == errors.ErrEmailAlreadyExists {
+		if errors.Is(err, coreErrors.ErrEmailAlreadyExists) {
 			return ctx.String(http.StatusConflict, "Email already used")
 		}
 		ctx.Logger().Error(err)
 		return ctx.NoContent(http.StatusInternalServerError)
 	}
 
-
 	// Générer le lien de confirmation avec le token
-	confirmationLink := fmt.Sprintf("http://localhost:8080/auth/confirm?token=%s", result.User.VerificationToken)
+	confirmationLink := fmt.Sprintf("http://localhost:3000/auth/confirm?token=%s", result.User.VerificationToken)
 	subject := "Confirmation de votre inscription"
 	body := fmt.Sprintf(`
    <!DOCTYPE html>
@@ -157,14 +156,14 @@ func (c *AuthController) Register(ctx echo.Context) error {
    </html>
    `, result.User.Name, confirmationLink, confirmationLink, confirmationLink)
 
-
-	
 	if err := utils.SendEmail(result.User.Email, subject, body); err != nil {
 		ctx.Logger().Error("Erreur lors de l'envoi de l'email :", err)
 		return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": "Unable to send confirmation email"})
 	}
 
-	return ctx.JSON(http.StatusCreated, result)
+	return ctx.JSON(http.StatusCreated, map[string]string{
+		"message": "Inscription réussie. Veuillez vérifier votre email pour confirmer votre compte",
+	})
 }
 
 func (c *AuthController) ConfirmEmail(ctx echo.Context) error {
@@ -177,8 +176,8 @@ func (c *AuthController) ConfirmEmail(ctx echo.Context) error {
 
 	err := c.authService.ConfirmEmail(token)
 	if err != nil {
-		switch err {
-		case errors.ErrInvalidToken:
+		switch {
+		case errors.Is(err, coreErrors.ErrInvalidToken):
 			return ctx.JSON(http.StatusBadRequest, map[string]string{
 				"error": "Invalid or expired token",
 			})
@@ -273,8 +272,8 @@ func (c *AuthController) ResendConfirmation(ctx echo.Context) error {
 
 	err := c.authService.ResendConfirmation(email)
 	if err != nil {
-		switch err {
-		case errors.ErrUserNotFound:
+		switch {
+		case errors.Is(err, coreErrors.ErrUserNotFound):
 			return ctx.JSON(http.StatusNotFound, map[string]string{
 				"error": "User not found or already verified",
 			})

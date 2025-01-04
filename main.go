@@ -44,12 +44,11 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-  if err := config.InitRedis(); err != nil {
+	if err := config.InitRedis(); err != nil {
 		log.Fatal("Failed to connect to Redis:", err)
-	  }
+	}
 
 	e.Use(middleware.Logger())
-
 
 	fmt.Printf("APP_MODE: %s\n", os.Getenv("ENVIRONMENT"))
 
@@ -75,8 +74,7 @@ func main() {
 
 	// faker.GenerateFakeData(newDB)
 
-	addr := "0.0.0.0:8080"
+	addr := "0.0.0.0:3000"
 	e.Logger.Fatal(e.Start(addr))
 	fmt.Printf("Listening on %s\n", addr)
-
 }

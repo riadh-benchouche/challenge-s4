@@ -137,25 +137,9 @@ func (s *AuthService) Register(request requests.RegisterRequest) (*RegisterRespo
 		return nil, errors.ErrInternal
 	}
 
-	jwtSecret, ok := os.LookupEnv("JWT_KEY")
-	if !ok {
-		return nil, errors.ErrInternal
-	}
-
-	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"id":    newUser.ID,
-		"email": newUser.Email,
-		"exp":   time.Now().Add(4 * time.Hour).Unix(),
-		"iat":   time.Now().Unix(),
-	}).SignedString([]byte(jwtSecret))
-
-	if err != nil {
-		return nil, errors.ErrInternal
-	}
-
 	userResource := resources.NewUserResource(newUser)
 	userResource.VerificationToken = verificationToken
-	return &RegisterResponse{User: userResource, Token: token}, nil
+	return &RegisterResponse{User: userResource}, nil
 }
 
 func (s *AuthService) ConfirmEmail(token string) error {
@@ -185,6 +169,7 @@ func (s *AuthService) ConfirmEmail(token string) error {
 		Where("email = ? AND email_verified_at IS NULL", email).
 		Updates(map[string]interface{}{
 			"email_verified_at": now,
+			"is_confirmed":      true,
 			"is_active":         true,
 		})
 

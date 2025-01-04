@@ -41,7 +41,7 @@ func (s *MessageService) GetMessagesByAssociation(associationID string) ([]model
 		Preload("Sender").
 		Preload("Association"). // Précharger les données de l'association
 		Where("association_id = ?", associationID).
-		Order("created_at DESC").
+		Order("created_at ASC").
 		Find(&messages).Error; err != nil {
 		return nil, err
 	}
