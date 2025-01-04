@@ -44,3 +44,8 @@ func (c *HomeController) GetTopAssociations(ctx echo.Context) error {
 	}
 	return ctx.JSON(http.StatusOK, associations)
 }
+
+func (c *HomeController) GetMe(ctx echo.Context) error {
+	loggedUser := ctx.Get("user").(models.User)
+	return ctx.JSON(http.StatusOK, loggedUser)
+}

@@ -15,4 +15,5 @@ func (r *HelloRouter) SetupRoutes(e *echo.Echo) {
 	e.GET("/admin/ping", homeController.HelloAdmin)
 	e.GET("/statistics", homeController.GetStatistics, middlewares.AuthenticationMiddleware())
 	e.GET("/top-associations", homeController.GetTopAssociations, middlewares.AuthenticationMiddleware())
+	e.GET("/me", homeController.GetMe, middlewares.AuthenticationMiddleware())
 }
