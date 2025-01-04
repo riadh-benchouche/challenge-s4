@@ -13,11 +13,18 @@ import (
 	"testing"
 
 	"github.com/labstack/echo/v4"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEventRouter_Unauthorized(t *testing.T) {
+	// Setup
+	err := test_utils.SetupTestDB()
+	assert.NoError(t, err)
+
 	e := echo.New()
-	routers.SetupEventRoutes(e, &controllers.EventController{})
+	service := services.NewEventService(database.CurrentDatabase)
+	controller := controllers.NewEventController(service)
+	routers.SetupEventRoutes(e, controller)
 
 	tests := []struct {
 		method, path string
@@ -30,15 +37,14 @@ func TestEventRouter_Unauthorized(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		req := httptest.NewRequest(tt.method, tt.path, nil)
-		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		rec := httptest.NewRecorder()
-		e.ServeHTTP(rec, req)
+		t.Run(tt.method+" "+tt.path, func(t *testing.T) {
+			req := httptest.NewRequest(tt.method, tt.path, nil)
+			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			rec := httptest.NewRecorder()
+			e.ServeHTTP(rec, req)
 
-		if rec.Code != http.StatusUnauthorized {
-			t.Errorf("Expected status code %d, got %d for %s %s",
-				http.StatusUnauthorized, rec.Code, tt.method, tt.path)
-		}
+			assert.Equal(t, http.StatusUnauthorized, rec.Code)
+		})
 	}
 }
 
