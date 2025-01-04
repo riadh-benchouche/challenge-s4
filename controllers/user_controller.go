@@ -30,23 +30,26 @@ func NewUserController() *UserController {
 }
 
 func (c *UserController) CreateUser(ctx echo.Context) error {
+	// 1. Bind la requête
 	var jsonBody models.User
-	err := json.NewDecoder(ctx.Request().Body).Decode(&jsonBody)
-	if err != nil {
+	if err := ctx.Bind(&jsonBody); err != nil {
 		return ctx.NoContent(http.StatusBadRequest)
 	}
 
+	// 2. Vérifier l'authentification
+	currentUser := ctx.Get("user")
+	if currentUser == nil {
+		return ctx.NoContent(http.StatusForbidden)
+	}
+
+	if admin, ok := currentUser.(models.User); !ok || admin.Role != enums.AdminRole {
+		return ctx.NoContent(http.StatusForbidden)
+	}
+
+	// 3. Générer l'ID avant la validation
 	jsonBody.ID = utils.GenerateULID()
 
-	if _, err := ulid.Parse(jsonBody.ID); err != nil {
-		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid ULID format"})
-	}
-
-	currentUser := ctx.Get("user")
-	if currentUser == nil || (currentUser.(models.User).Role != enums.AdminRole) {
-		jsonBody.Role = enums.UserRole
-	}
-
+	// 4. Créer l'utilisateur
 	newUser, err := c.UserService.AddUser(jsonBody)
 	if err != nil {
 		if errors.Is(err, coreErrors.ErrUserAlreadyExists) {
@@ -57,6 +60,12 @@ func (c *UserController) CreateUser(ctx echo.Context) error {
 		if errors.As(err, &validationErrs) {
 			validationErrors := utils.GetValidationErrors(validationErrs, jsonBody)
 			return ctx.JSON(http.StatusUnprocessableEntity, validationErrors)
+		}
+
+		if errors.Is(err, coreErrors.ErrInvalidPassword) {
+			return ctx.JSON(http.StatusUnprocessableEntity, map[string]string{
+				"error": "Invalid password",
+			})
 		}
 
 		ctx.Logger().Error(err)

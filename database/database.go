@@ -146,12 +146,16 @@ func InitTestDB() (*gorm.DB, error) {
 
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		return nil, fmt.Errorf("DATABASE_URL is required for tests")
+		dbURL = "postgres://postgres:postgres@localhost:5432/backend_test"
 	}
 
-	db, err := gorm.Open(postgres.Open(dbURL), &gorm.Config{})
+	config := &gorm.Config{
+		DisableForeignKeyConstraintWhenMigrating: true,
+	}
+
+	db, err := gorm.Open(postgres.Open(dbURL), config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to test database: %v", err)
+		return nil, fmt.Errorf("failed to connect to database: %v", err)
 	}
 
 	// Test la connexion

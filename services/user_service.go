@@ -15,52 +15,59 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-type UserService struct{}
+// services/user_service.go
+
+type UserService struct {
+	authService *AuthService
+}
 
 func NewUserService() *UserService {
-	return &UserService{}
+	return &UserService{
+		authService: NewAuthService(),
+	}
 }
 
 func (s *UserService) AddUser(user models.User) (*models.User, error) {
+	// 1. Validation
 	validate := validator.New(validator.WithRequiredStructEnabled())
 	err := validate.Struct(user)
 	if err != nil {
 		return nil, err
 	}
 
+	// 2. Vérifier si l'email existe déjà
 	var existingUser models.User
-	database.CurrentDatabase.Where("email = ?", user.Email).First(&existingUser)
-	if existingUser.ID != "" {
+	result := database.CurrentDatabase.Where("email = ?", user.Email).First(&existingUser)
+	if result.Error == nil {
 		return nil, errors.ErrUserAlreadyExists
 	}
 
-	user.Password, err = NewAuthService().HashPassword(*user.PlainPassword)
+	// 3. Générer l'ID si non fourni
+	if user.ID == "" {
+		user.ID = utils.GenerateULID()
+	}
+
+	// 4. Hasher le mot de passe avant de créer l'utilisateur
+	if user.PlainPassword == nil || *user.PlainPassword == "" {
+		return nil, errors.ErrInvalidPassword
+	}
+
+	hashedPassword, err := s.authService.HashPassword(*user.PlainPassword)
 	if err != nil {
 		return nil, err
 	}
+
+	user.Password = hashedPassword
 	user.PlainPassword = nil
 
-	// Gérer la vérification d'email avec Redis
-	verificationToken := utils.GenerateULID()
-	ctx := context.Background()
-
-	// Stocker le token dans Redis
-	err = config.RedisClient.Set(ctx,
-		"email_verification:"+verificationToken,
-		user.Email,
-		24*time.Hour).Err()
-	if err != nil {
-		return nil, err
-	}
-
+	// 5. Définir les valeurs par défaut
 	user.IsActive = false
 	user.EmailVerifiedAt = nil
 
-	create := database.CurrentDatabase.Create(&user)
-	if create.Error != nil {
-		// En cas d'erreur, nettoyer Redis
-		config.RedisClient.Del(ctx, "email_verification:"+verificationToken)
-		return nil, create.Error
+	// 6. Créer l'utilisateur
+	err = database.CurrentDatabase.Create(&user).Error
+	if err != nil {
+		return nil, err
 	}
 
 	return &user, nil

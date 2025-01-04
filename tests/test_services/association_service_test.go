@@ -1,7 +1,7 @@
-// backend/tests/test_services/association_service_test.go
 package services_test
 
 import (
+	"backend/database"
 	"backend/services"
 	"backend/tests/test_utils"
 	"testing"
@@ -9,25 +9,23 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Dans association_service_test.go
 func TestCreateAssociation_Success(t *testing.T) {
 	// Setup
 	err := test_utils.SetupTestDB()
-	if err != nil {
-		t.Fatalf("Failed to setup test database: %v", err)
-	}
+	assert.NoError(t, err)
 
-	service := services.NewAssociationService()
-	if service == nil {
-		t.Fatal("Service should not be nil")
-	}
-
-	// Créer d'abord un utilisateur
+	// Créer l'utilisateur d'abord
 	user := test_utils.GetAuthenticatedUser()
+	err = database.CurrentDatabase.Create(&user).Error
+	assert.NoError(t, err)
+
+	// Créer l'association
 	association := test_utils.GetValidAssociation()
 	association.OwnerID = user.ID
 	association.Owner = user
 
-	// Test
+	service := services.NewAssociationService() // Sans paramètre
 	result, err := service.CreateAssociation(association)
 
 	// Assertions
