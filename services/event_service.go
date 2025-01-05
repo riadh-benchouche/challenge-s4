@@ -127,24 +127,43 @@ func (s *EventService) GetUserEventParticipation(eventID string, userID string, 
 
 func (s *EventService) ChangeUserEventAttend(isAttending bool, eventID string, userID string) (*models.Participation, error) {
 	participation := s.GetUserEventParticipation(eventID, userID)
+
+	if !isAttending && participation != nil {
+		// Si on veut se désinscrire et que la participation existe, on la supprime
+		err := database.CurrentDatabase.Delete(&participation).Error
+		if err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+
 	if participation == nil {
+		// Création d'une nouvelle participation
 		participation = &models.Participation{
 			EventID:     eventID,
 			UserID:      userID,
-			IsAttending: isAttending,
+			IsAttending: true,
 		}
-
 		err := database.CurrentDatabase.Create(&participation).Error
 		if err != nil {
 			return nil, err
 		}
-		return participation, nil
 	} else {
-		participation.IsAttending = isAttending
+		// Mise à jour de la participation existante
+		participation.IsAttending = true
 		err := database.CurrentDatabase.Save(&participation).Error
 		if err != nil {
 			return nil, err
 		}
-		return participation, nil
 	}
+
+	return participation, nil
+}
+
+func (s *EventService) IsUserAttendingEvent(eventID string, userID string) bool {
+	participation := s.GetUserEventParticipation(eventID, userID)
+	if participation == nil {
+		return false
+	}
+	return participation.IsAttending
 }

@@ -258,3 +258,27 @@ func (c *EventController) ChangeAttend(ctx echo.Context) error {
 
 	return ctx.JSON(http.StatusOK, participation)
 }
+
+func (c *EventController) IsAttended(ctx echo.Context) error {
+	user, ok := ctx.Get("user").(models.User)
+	if !ok || user.ID == "" {
+		return ctx.NoContent(http.StatusUnauthorized)
+	}
+
+	eventID := ctx.Param("id")
+	if eventID == "" {
+		return ctx.NoContent(http.StatusBadRequest)
+	}
+
+	event, err := c.EventService.GetEventById(eventID)
+	if err != nil {
+		return ctx.NoContent(http.StatusInternalServerError)
+	}
+	if event == nil || event.ID == "" {
+		return ctx.NoContent(http.StatusNotFound)
+	}
+
+	isAttended := c.EventService.IsUserAttendingEvent(eventID, user.ID)
+
+	return ctx.JSON(http.StatusOK, map[string]bool{"is_attended": isAttended})
+}

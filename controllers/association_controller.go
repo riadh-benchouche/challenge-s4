@@ -58,7 +58,7 @@ func (c *AssociationController) CreateAssociation(ctx echo.Context) error {
 		return ctx.NoContent(http.StatusInternalServerError)
 	}
 
-	joinedAssociation, err := c.UserService.JoinAssociation(user.ID, newAssociation.ID, newAssociation.Code)
+	_, err = c.UserService.JoinAssociation(user.ID, newAssociation.ID, newAssociation.Code)
 	if err != nil {
 		switch {
 		case errors.Is(err, coreErrors.ErrAlreadyJoined):
@@ -71,7 +71,7 @@ func (c *AssociationController) CreateAssociation(ctx echo.Context) error {
 		}
 	}
 
-	return ctx.JSON(http.StatusCreated, joinedAssociation)
+	return ctx.JSON(http.StatusCreated, newAssociation)
 }
 
 func (c *AssociationController) GetAssociationById(ctx echo.Context) error {

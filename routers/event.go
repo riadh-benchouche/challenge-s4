@@ -23,4 +23,5 @@ func (r EventRouter) SetupRoutes(e *echo.Echo) {
 	api.PUT("/:id", eventController.UpdateEvent, middlewares.AuthenticationMiddleware(enums.AssociationLeaderRole, enums.AdminRole))
 	api.DELETE("/:id", eventController.DeleteEvent, middlewares.AuthenticationMiddleware(enums.AdminRole, enums.AssociationLeaderRole))
 	api.POST("/:id/user-event-participation", eventController.ChangeAttend, middlewares.AuthenticationMiddleware())
+	api.GET("/:id/is-attended", eventController.IsAttended, middlewares.AuthenticationMiddleware())
 }
