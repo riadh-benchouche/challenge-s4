@@ -3,7 +3,6 @@ package main
 import (
 	"backend/database"
 	"backend/routers"
-	"backend/swagger"
 	"fmt"
 	"os"
 
@@ -67,14 +66,11 @@ func main() {
 
 	e.Static("/public", "public")
 
-	swaggerAPI := swagger.SetupSwagger()
-	e.GET("/swagger", func(c echo.Context) error {
-		return c.JSON(200, swaggerAPI) // Retourner l'API Swagger en JSON
-	})
+	routers.SetupSwaggerRoutes(e)
 
 	//faker.GenerateFakeData(newDB)
 
-	addr := "0.0.0.0:8080"
+	addr := "0.0.0.0:3000"
 	e.Logger.Fatal(e.Start(addr))
 	fmt.Printf("Listening on %s\n", addr)
 

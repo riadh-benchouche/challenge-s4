@@ -11,6 +11,9 @@ func SetupSwagger() *swag.API {
 		option.Title("API Documentation"),
 		option.Description("Backend API documentation for all models"),
 		option.Version("1.0.0"),
+		option.SecurityScheme("bearer_auth",
+			option.APIKeySecurity("Authorization", "header"),
+		),
 	)
 
 	// Ajouter les endpoints pour chaque modèle
