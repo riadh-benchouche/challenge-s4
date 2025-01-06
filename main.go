@@ -1,7 +1,6 @@
 package main
 
 import (
-	"backend/config"
 	"backend/database"
 	"backend/routers"
 	"fmt"
@@ -37,16 +36,11 @@ func main() {
 
 	// Middleware CORS
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-
 		AllowOrigins:     []string{"*"},
 		AllowMethods:     []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},
 		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 		AllowCredentials: true,
 	}))
-
-	if err := config.InitRedis(); err != nil {
-		log.Fatal("Failed to connect to Redis:", err)
-	}
 
 	e.Use(middleware.Logger())
 
@@ -72,9 +66,12 @@ func main() {
 
 	e.Static("/public", "public")
 
-	// faker.GenerateFakeData(newDB)
+	routers.SetupSwaggerRoutes(e)
+
+	//faker.GenerateFakeData(newDB)
 
 	addr := "0.0.0.0:3000"
 	e.Logger.Fatal(e.Start(addr))
 	fmt.Printf("Listening on %s\n", addr)
+
 }

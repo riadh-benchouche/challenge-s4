@@ -57,15 +57,26 @@ func GenerateFakeMessage(associationID, senderID string) models.Message {
 	return message
 }
 
-// func GenerateFakeParticipation() models.Participation {
-// 	var participation models.Participation
-// 	err := faker.FakeData(&participation)
-// 	if err != nil {
-// 		log.Fatalf("Erreur de génération de données pour Participation : %v", err)
-// 	}
-// 	participation.CreatedAt = time.Now()
-// 	return participation
-// }
+func GenerateFakeParticipation(userID, eventID string) models.Participation {
+	if userID == "" || eventID == "" {
+		log.Fatalf("Erreur : userID ou eventID est vide pour la participation")
+	}
+
+	var participation models.Participation
+	err := faker.FakeData(&participation)
+	if err != nil {
+		log.Fatalf("Erreur de génération de données pour Participation : %v", err)
+	}
+
+	participation.ID = utils.GenerateULID()
+	participation.UserID = userID
+	participation.EventID = eventID
+	participation.IsAttending = true
+	participation.CreatedAt = time.Now()
+	participation.UpdatedAt = time.Now()
+
+	return participation
+}
 
 func GenerateFakeAssociation(ownerID string) models.Association {
 	var association models.Association
@@ -91,33 +102,55 @@ func GenerateFakeCategory() models.Category {
 	return category
 }
 
-// func GenerateFakeMembership() models.Membership {
-// 	var membership models.Membership
-// 	err := faker.FakeData(&membership)
-// 	if err != nil {
-// 		log.Fatalf("Erreur de génération de données pour Membership : %v", err)
-// 	}
-// 	membership.CreatedAt = time.Now()
-// 	return membership
-// }
+func GenerateFakeMembership(userID, associationID string) models.Membership {
+	if userID == "" || associationID == "" {
+		log.Fatalf("Erreur : userID ou associationID est vide pour le membership")
+	}
+
+	var membership models.Membership
+	err := faker.FakeData(&membership)
+	if err != nil {
+		log.Fatalf("Erreur de génération de données pour Membership : %v", err)
+	}
+
+	membership.UserID = userID
+	membership.AssociationID = associationID
+	membership.JoinedAt = time.Now()
+	membership.CreatedAt = time.Now()
+	membership.UpdatedAt = time.Now()
+
+	return membership
+}
 
 func GenerateFakeData(db *gorm.DB) {
-
 	var categories []models.Category
 	var users []models.User
+	var associations []models.Association
+	var events []models.Event
+	var nonOwnerUsers []models.User
+
+	// Génération des catégories
 	for i := 0; i < 10; i++ {
 		category := GenerateFakeCategory()
 		db.Create(&category)
 		categories = append(categories, category)
 	}
 
+	// Génération des utilisateurs propriétaires
 	for i := 0; i < 10; i++ {
 		user := GenerateFakeUser()
 		db.Create(&user)
 		users = append(users, user)
 	}
 
-	var associations []models.Association
+	// Génération des utilisateurs non propriétaires
+	for i := 0; i < 10; i++ {
+		user := GenerateFakeUser()
+		db.Create(&user)
+		nonOwnerUsers = append(nonOwnerUsers, user)
+	}
+
+	// Génération des associations
 	for i := 0; i < 10; i++ {
 		ownerID := users[i%len(users)].ID
 		association := GenerateFakeAssociation(ownerID)
@@ -125,13 +158,16 @@ func GenerateFakeData(db *gorm.DB) {
 		associations = append(associations, association)
 	}
 
+	// Génération des événements
 	for i := 0; i < 10; i++ {
 		categoryID := categories[i%len(categories)].ID
 		associationID := associations[i%len(associations)].ID
 		event := GenerateFakeEvent(categoryID, associationID)
 		db.Create(&event)
+		events = append(events, event)
 	}
 
+	// Génération des messages
 	for i := 0; i < 10; i++ {
 		senderID := users[i%len(users)].ID
 		associationID := associations[i%len(associations)].ID
@@ -139,15 +175,11 @@ func GenerateFakeData(db *gorm.DB) {
 		db.Create(&message)
 	}
 
-	// Étapes 5 et 6 : Générez des participations et memberships, si nécessaire, en suivant la même logique
-
-	// for i := 0; i < 10; i++ {
-	// 	participation := GenerateFakeParticipation()
-	// 	db.Create(&participation)
-	// }
-
-	// for i := 0; i < 10; i++ {
-	// 	membership := GenerateFakeMembership()
-	// 	db.Create(&membership)
-	// }
+	// Génération des participations
+	for i := 0; i < 10; i++ {
+		userID := users[i%len(users)].ID
+		eventID := events[i%len(events)].ID
+		participation := GenerateFakeParticipation(userID, eventID)
+		db.Create(&participation)
+	}
 }
