@@ -1,4 +1,3 @@
-// tests/errors/association_errors_test.go
 package errors_test
 
 import (
@@ -13,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// tests/test_errors/association_errors_test.go
 func TestCreateAssociation_Errors(t *testing.T) {
 	if err := test_utils.SetupTestDB(); err != nil {
 		t.Fatalf("Failed to setup test DB: %v", err)
@@ -28,7 +26,7 @@ func TestCreateAssociation_Errors(t *testing.T) {
 		c := e.NewContext(req, rec)
 
 		err := controller.CreateAssociation(c)
-		assert.NoError(t, err) // Le controller gère lui-même l'erreur
+		assert.NoError(t, err)
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
 	})
 
@@ -37,12 +35,11 @@ func TestCreateAssociation_Errors(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		// Ajouter un utilisateur authentifié
 		user := test_utils.GetAuthenticatedUser()
 		c.Set("user", user)
 
 		err := controller.CreateAssociation(c)
-		assert.NoError(t, err) // Le controller gère lui-même l'erreur
+		assert.NoError(t, err)
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
 	})
 }

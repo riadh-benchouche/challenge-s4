@@ -1,10 +1,10 @@
-// tests/test_controllers/user_controller_test.go
 package controllers_test
 
 import (
 	"backend/controllers"
 	"backend/database"
 	"backend/enums"
+	"backend/models"
 	"backend/tests/test_utils"
 	"net/http"
 	"net/http/httptest"
@@ -24,38 +24,44 @@ func TestCreateUser_Integration(t *testing.T) {
 	controller := controllers.NewUserController()
 
 	t.Run("Success", func(t *testing.T) {
-		// Create admin user first
+
 		plainPassword := "TestPassword123!"
 		admin := test_utils.GetValidUser(enums.AdminRole)
 		admin.PlainPassword = &plainPassword
 		admin.Password = "hashedpassword"
-		if err := database.CurrentDatabase.Create(&admin).Error; err != nil {
+		admin.IsActive = true
+		admin.IsConfirmed = true
+		admin.Role = enums.AdminRole
+
+		if err := database.CurrentDatabase.Create(admin).Error; err != nil {
 			t.Fatalf("Failed to create admin user: %v", err)
 		}
 
-		// Préparer le corps de la requête
+		var createdAdmin models.User
+		if err := database.CurrentDatabase.First(&createdAdmin, "id = ?", admin.ID).Error; err != nil {
+			t.Fatalf("Failed to retrieve admin: %v", err)
+		}
+		t.Logf("Created admin: %+v", createdAdmin)
+
 		requestBody := `{
-			"name": "Test User",
-			"email": "new.test@example.com",
-			"password": "TestPassword123!",
-			"role": "user"
-		}`
+            "name": "Test User",
+            "email": "new.test@example.com",
+            "plain_password": "TestPassword123!",
+            "role": "user"
+        }`
 
 		req := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(requestBody))
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
-		c.Set("user", admin)
 
-		// Log pour déboguer
-		t.Logf("Request Body: %s", requestBody)
+		c.Set("user", createdAdmin)
 
 		err := controller.CreateUser(c)
 		if err != nil {
 			t.Logf("Controller error: %v", err)
 		}
 
-		// Log pour déboguer
 		t.Logf("Response Status: %d", rec.Code)
 		t.Logf("Response Body: %s", rec.Body.String())
 
@@ -68,7 +74,7 @@ func TestCreateUser_Integration(t *testing.T) {
 		admin := test_utils.GetValidUser(enums.AdminRole)
 		admin.PlainPassword = &plainPassword
 		admin.Password = "hashedpassword"
-		if err := database.CurrentDatabase.Create(&admin).Error; err != nil {
+		if err := database.CurrentDatabase.Create(admin).Error; err != nil {
 			t.Fatalf("Failed to create admin user: %v", err)
 		}
 

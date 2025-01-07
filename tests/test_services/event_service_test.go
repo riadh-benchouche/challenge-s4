@@ -7,180 +7,194 @@ import (
 	"backend/tests/test_utils"
 	"backend/utils"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestAddEvent_Success(t *testing.T) {
-	// Setup
+func TestEventService(t *testing.T) {
 	err := test_utils.SetupTestDB()
 	assert.NoError(t, err)
 
-	// Créer d'abord l'utilisateur
-	user := test_utils.GetAuthenticatedUser()
-	err = database.CurrentDatabase.Create(&user).Error
-	assert.NoError(t, err)
+	service := services.NewEventService()
 
-	// Créer la catégorie
-	category := test_utils.GetValidCategory()
-	err = database.CurrentDatabase.Create(&category).Error
-	assert.NoError(t, err)
+	t.Run("CreateEvent_Success", func(t *testing.T) {
 
-	// Créer l'association avec le bon ownerID
-	association := test_utils.GetValidAssociation()
-	association.OwnerID = user.ID // Définir le propriétaire correctement
-	association.Owner = user      // Définir la relation
-	err = database.CurrentDatabase.Create(&association).Error
-	assert.NoError(t, err)
-
-	// Créer l'événement
-	event := &models.Event{
-		ID:            utils.GenerateULID(),
-		Name:          "Test Event",
-		Description:   "Test Description",
-		Location:      "Test Location",
-		Date:          time.Now(),
-		CategoryID:    category.ID,
-		AssociationID: association.ID,
-	}
-
-	// Test
-	service := services.NewEventService(database.CurrentDatabase)
-	err = service.Create(event)
-
-	// Assertions
-	assert.NoError(t, err)
-	assert.NotEmpty(t, event.ID)
-}
-
-func TestGetEvents_Success(t *testing.T) {
-	// Setup
-	err := test_utils.SetupTestDB()
-	assert.NoError(t, err)
-
-	// Créer l'utilisateur
-	user := test_utils.GetAuthenticatedUser()
-	err = database.CurrentDatabase.Create(&user).Error
-	assert.NoError(t, err)
-
-	// Créer la catégorie
-	category := test_utils.GetValidCategory()
-	err = database.CurrentDatabase.Create(&category).Error
-	assert.NoError(t, err)
-
-	// Créer l'association
-	association := test_utils.GetValidAssociation()
-	association.OwnerID = user.ID
-	association.Owner = user
-	err = database.CurrentDatabase.Create(&association).Error
-	assert.NoError(t, err)
-
-	// Créer les événements avec les bonnes relations
-	events := []models.Event{
-		{
-			ID:            utils.GenerateULID(),
-			Name:          "Event 1",
-			Description:   "Description 1",
-			Date:          time.Now(),
-			Location:      "Location 1",
-			CategoryID:    category.ID,
-			AssociationID: association.ID,
-		},
-		{
-			ID:            utils.GenerateULID(),
-			Name:          "Event 2",
-			Description:   "Description 2",
-			Date:          time.Now(),
-			Location:      "Location 2",
-			CategoryID:    category.ID,
-			AssociationID: association.ID,
-		},
-	}
-
-	for _, event := range events {
-		err = database.CurrentDatabase.Create(&event).Error
+		user := test_utils.GetAuthenticatedUser()
+		err := database.CurrentDatabase.Create(&user).Error
 		assert.NoError(t, err)
-	}
 
-	// Test
-	service := services.NewEventService(database.CurrentDatabase)
-	results, err := service.GetAll()
+		association := test_utils.GetValidAssociation()
+		association.OwnerID = user.ID
+		err = database.CurrentDatabase.Create(&association).Error
+		assert.NoError(t, err)
 
-	// Assertions
-	assert.NoError(t, err)
-	assert.Len(t, results, 2)
-}
+		event := test_utils.GetValidEvent(association.ID)
 
-func TestAddEvent_ValidationError(t *testing.T) {
-	err := test_utils.SetupTestDB()
-	assert.NoError(t, err)
+		createdEvent, err := service.AddEvent(&event)
+		assert.NoError(t, err)
+		assert.NotNil(t, createdEvent)
+		assert.NotEmpty(t, createdEvent.ID)
+		assert.Equal(t, event.Name, createdEvent.Name)
+	})
 
-	service := services.NewEventService(database.CurrentDatabase)
+	t.Run("GetEvent_Success", func(t *testing.T) {
+		user := test_utils.GetAuthenticatedUser()
+		err := database.CurrentDatabase.Create(&user).Error
+		assert.NoError(t, err)
 
-	event := &models.Event{
-		ID:   utils.GenerateULID(),
-		Name: "Test Event",
-		// Laisser AssociationID vide pour tester la validation
-	}
+		association := test_utils.GetValidAssociation()
+		association.OwnerID = user.ID
+		err = database.CurrentDatabase.Create(&association).Error
+		assert.NoError(t, err)
 
-	err = service.Create(event)
-	assert.Error(t, err) // Doit retourner une erreur car AssociationID est requis
-}
+		event := test_utils.GetValidEvent(association.ID)
+		createdEvent, err := service.AddEvent(&event)
+		assert.NoError(t, err)
 
-func TestGetEventByID_NotFound(t *testing.T) {
-	err := test_utils.SetupTestDB()
-	assert.NoError(t, err)
+		retrievedEvent, err := service.GetEventById(createdEvent.ID)
+		assert.NoError(t, err)
+		assert.Equal(t, event.Name, retrievedEvent.Name)
+		assert.Equal(t, event.AssociationID, retrievedEvent.AssociationID)
+	})
 
-	service := services.NewEventService(database.CurrentDatabase)
+	t.Run("UpdateEvent_Success", func(t *testing.T) {
+		user := test_utils.GetAuthenticatedUser()
+		err := database.CurrentDatabase.Create(&user).Error
+		assert.NoError(t, err)
 
-	// Tenter de récupérer un événement inexistant
-	_, err = service.GetByID("non-existent-id")
-	assert.Error(t, err)
-}
+		association := test_utils.GetValidAssociation()
+		association.OwnerID = user.ID
+		err = database.CurrentDatabase.Create(&association).Error
+		assert.NoError(t, err)
 
-func TestDeleteEvent_Success(t *testing.T) {
-	// Setup
-	err := test_utils.SetupTestDB()
-	assert.NoError(t, err)
+		event := test_utils.GetValidEvent(association.ID)
+		createdEvent, err := service.AddEvent(&event)
+		assert.NoError(t, err)
 
-	// Créer l'utilisateur
-	user := test_utils.GetAuthenticatedUser()
-	err = database.CurrentDatabase.Create(&user).Error
-	assert.NoError(t, err)
+		createdEvent.Name = "Updated Event Name"
+		createdEvent.Description = "Updated Event Description"
+		createdEvent.Location = "Updated Location"
 
-	// Créer la catégorie
-	category := test_utils.GetValidCategory()
-	err = database.CurrentDatabase.Create(&category).Error
-	assert.NoError(t, err)
+		err = service.UpdateEvent(createdEvent)
+		assert.NoError(t, err)
 
-	// Créer l'association
-	association := test_utils.GetValidAssociation()
-	association.OwnerID = user.ID
-	association.Owner = user
-	err = database.CurrentDatabase.Create(&association).Error
-	assert.NoError(t, err)
+		updatedEvent, err := service.GetEventById(createdEvent.ID)
+		assert.NoError(t, err)
+		assert.Equal(t, "Updated Event Name", updatedEvent.Name)
+		assert.Equal(t, "Updated Event Description", updatedEvent.Description)
+		assert.Equal(t, "Updated Location", updatedEvent.Location)
+	})
 
-	// Créer l'événement
-	event := &models.Event{
-		ID:            utils.GenerateULID(),
-		Name:          "Test Event",
-		Description:   "Test Description",
-		Location:      "Test Location",
-		Date:          time.Now(),
-		CategoryID:    category.ID,
-		AssociationID: association.ID,
-	}
-	err = database.CurrentDatabase.Create(event).Error
-	assert.NoError(t, err)
+	t.Run("DeleteEvent_Success", func(t *testing.T) {
+		user := test_utils.GetAuthenticatedUser()
+		err := database.CurrentDatabase.Create(&user).Error
+		assert.NoError(t, err)
 
-	service := services.NewEventService(database.CurrentDatabase)
+		association := test_utils.GetValidAssociation()
+		association.OwnerID = user.ID
+		err = database.CurrentDatabase.Create(&association).Error
+		assert.NoError(t, err)
 
-	// Test
-	err = service.Delete(event.ID)
-	assert.NoError(t, err)
+		event := test_utils.GetValidEvent(association.ID)
+		createdEvent, err := service.AddEvent(&event)
+		assert.NoError(t, err)
 
-	// Vérifier la suppression
-	_, err = service.GetByID(event.ID)
-	assert.Error(t, err)
+		err = service.DeleteEvent(createdEvent.ID)
+		assert.NoError(t, err)
+
+		_, err = service.GetEventById(createdEvent.ID)
+		assert.Error(t, err)
+	})
+
+	t.Run("GetEvents_WithPagination", func(t *testing.T) {
+		user := test_utils.GetAuthenticatedUser()
+		err := database.CurrentDatabase.Create(&user).Error
+		assert.NoError(t, err)
+
+		association := test_utils.GetValidAssociation()
+		association.OwnerID = user.ID
+		err = database.CurrentDatabase.Create(&association).Error
+		assert.NoError(t, err)
+
+		for i := 0; i < 5; i++ {
+			event := test_utils.GetValidEvent(association.ID)
+			_, err := service.AddEvent(&event)
+			assert.NoError(t, err)
+		}
+
+		pagination := utils.Pagination{
+			Page:  1,
+			Limit: 3,
+		}
+		search := "Test Event"
+
+		result, err := service.GetEvents(pagination, &search)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 3, len(result.Rows.([]models.Event)))
+	})
+
+	t.Run("GetEventParticipations_Success", func(t *testing.T) {
+		user := test_utils.GetAuthenticatedUser()
+		err := database.CurrentDatabase.Create(&user).Error
+		assert.NoError(t, err)
+
+		association := test_utils.GetValidAssociation()
+		association.OwnerID = user.ID
+		err = database.CurrentDatabase.Create(&association).Error
+		assert.NoError(t, err)
+
+		event := test_utils.GetValidEvent(association.ID)
+		createdEvent, err := service.AddEvent(&event)
+		assert.NoError(t, err)
+
+		participation := test_utils.GetValidParticipation(user.ID, createdEvent.ID)
+		err = database.CurrentDatabase.Create(&participation).Error
+		assert.NoError(t, err)
+
+		pagination := utils.Pagination{
+			Page:  1,
+			Limit: 10,
+		}
+		status := "pending"
+
+		result, err := service.GetEventParticipations(createdEvent.ID, pagination, &status)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+
+	t.Run("ChangeUserEventAttend_Success", func(t *testing.T) {
+
+		user := test_utils.GetAuthenticatedUser()
+		err := database.CurrentDatabase.Create(user).Error
+		assert.NoError(t, err)
+
+		association := test_utils.GetValidAssociation()
+		association.OwnerID = user.ID
+		err = database.CurrentDatabase.Create(association).Error
+		assert.NoError(t, err)
+
+		event := test_utils.GetValidEvent(association.ID)
+		createdEvent, err := service.AddEvent(&event)
+		assert.NoError(t, err)
+		assert.NotNil(t, createdEvent)
+
+		participation := models.Participation{
+			UserID:      user.ID,
+			EventID:     createdEvent.ID,
+			IsAttending: false,
+		}
+		err = database.CurrentDatabase.Create(&participation).Error
+		assert.NoError(t, err)
+
+		updatedParticipation, err := service.ChangeUserEventAttend(true, createdEvent.ID, user.ID)
+		assert.NoError(t, err)
+		assert.NotNil(t, updatedParticipation)
+		assert.True(t, updatedParticipation.IsAttending)
+
+		var checkParticipation models.Participation
+		err = database.CurrentDatabase.Where("event_id = ? AND user_id = ?", createdEvent.ID, user.ID).First(&checkParticipation).Error
+		assert.NoError(t, err)
+		assert.True(t, checkParticipation.IsAttending)
+	})
 }
