@@ -44,7 +44,7 @@ func (cs *ChatService) GetChatGPTResponse(message string, dbData []models.Associ
 
 	// Prépare la requête
 	reqBody := map[string]interface{}{
-		"model": "gpt-3.5-turbo",
+		"model": "gpt-4o-mini",
 		"messages": []map[string]string{
 			{
 				"role":    "system",

@@ -299,6 +299,7 @@ func (c *UserController) JoinAssociation(ctx echo.Context) error {
 	return ctx.NoContent(http.StatusNoContent)
 }
 
+// UploadProfileImage TODO: fix a max image size
 func (c *UserController) UploadProfileImage(ctx echo.Context) error {
 	userID := ctx.Param("id")
 
