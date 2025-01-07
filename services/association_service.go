@@ -72,7 +72,9 @@ type AssociationFilter struct {
 func (s *AssociationService) GetAllAssociations(pagination utils.Pagination, filters ...AssociationFilter) (*utils.Pagination, error) {
 	var associations []models.Association
 
-	query := database.CurrentDatabase.Model(models.Association{})
+	query := database.CurrentDatabase.
+		Where("is_active = ?", true).
+		Model(models.Association{})
 
 	if len(filters) > 0 {
 		for _, filter := range filters {
