@@ -307,23 +307,56 @@ func (c *UserController) UploadProfileImage(ctx echo.Context) error {
 		return ctx.JSON(http.StatusForbidden, "Vous ne pouvez pas modifier l'image de profil d'un autre utilisateur !")
 	}
 
+	// Récupérer le fichier depuis le formulaire
 	file, err := ctx.FormFile("image")
 	if err != nil {
 		ctx.Logger().Error("Error retrieving file: ", err)
 		return ctx.JSON(http.StatusBadRequest, "Erreur lors de l'upload de l'image")
 	}
 
+	// Vérifier la taille du fichier (exemple : 5 MB)
+	const maxFileSize = 5 * 1024 * 1024 // 5 MB
+	if file.Size > maxFileSize {
+		return ctx.JSON(http.StatusBadRequest, "La taille du fichier dépasse la limite autorisée de 5 MB")
+	}
+
+	// Ouvrir le fichier temporairement pour vérifier son type
 	src, err := file.Open()
 	if err != nil {
 		return ctx.JSON(http.StatusInternalServerError, "Erreur lors de l'ouverture de l'image")
 	}
 	defer src.Close()
 
+	// Lire les premiers 512 octets pour détecter le type MIME
+	buffer := make([]byte, 512)
+	if _, err := src.Read(buffer); err != nil {
+		return ctx.JSON(http.StatusInternalServerError, "Erreur lors de la lecture de l'image")
+	}
+
+	fileType := http.DetectContentType(buffer)
+
+	// Types MIME acceptés (ajoutez ceux qui sont pertinents pour votre cas)
+	allowedTypes := map[string]bool{
+		"image/jpeg": true,
+		"image/png":  true,
+		"image/gif":  true,
+	}
+
+	if !allowedTypes[fileType] {
+		return ctx.JSON(http.StatusBadRequest, "Type de fichier non supporté. Seules les images JPEG, PNG et GIF sont autorisées")
+	}
+
+	// Retourner au début du fichier pour le traitement ultérieur
+	if _, err := src.Seek(0, io.SeekStart); err != nil {
+		return ctx.JSON(http.StatusInternalServerError, "Erreur lors de la réinitialisation du fichier")
+	}
+
+	// Créer le répertoire public si nécessaire
 	if _, err := os.Stat("public"); os.IsNotExist(err) {
 		os.MkdirAll("public", os.ModePerm)
 	}
 
-	imageName := userID + "" + file.Filename
+	imageName := userID + "_" + file.Filename
 	imagePath := "public/" + imageName
 
 	dst, err := os.Create(imagePath)
@@ -345,7 +378,10 @@ func (c *UserController) UploadProfileImage(ctx echo.Context) error {
 		return ctx.JSON(http.StatusInternalServerError, "Erreur lors de la mise à jour de l'URL de l'image")
 	}
 
-	return ctx.JSON(http.StatusOK, map[string]string{"message": "Image uploadée avec succès", "image_url": imagePath})
+	return ctx.JSON(http.StatusOK, map[string]string{
+		"message":   "Image uploadée avec succès",
+		"image_url": imagePath,
+	})
 }
 
 func (c *UserController) GetUserEvents(ctx echo.Context) error {
