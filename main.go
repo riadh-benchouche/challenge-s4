@@ -1,6 +1,7 @@
 package main
 
 import (
+	"backend/config"
 	"backend/database"
 	"backend/routers"
 	"fmt"
@@ -42,6 +43,9 @@ func main() {
 		AllowCredentials: true,
 	}))
 
+	if err := config.InitRedis(); err != nil {
+		log.Fatal("Failed to connect to Redis:", err)
+	}
 	e.Use(middleware.Logger())
 
 	fmt.Printf("APP_MODE: %s\n", os.Getenv("ENVIRONMENT"))
