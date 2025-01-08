@@ -264,3 +264,47 @@ func (c *AssociationController) JoinAssociation(ctx echo.Context) error {
 
 	return ctx.JSON(http.StatusOK, joinedAssociation)
 }
+
+func (c *AssociationController) UpdateAssociation(ctx echo.Context) error {
+	associationID := ctx.Param("associationId")
+
+	existingAssociation, err := c.AssociationService.GetAssociationById(associationID)
+	if err != nil {
+		return ctx.JSON(http.StatusNotFound, map[string]string{"error": "Association not found"})
+	}
+
+	var updateData struct {
+		Name        *string `json:"name"`
+		Description *string `json:"description"`
+		IsActive    *bool   `json:"is_active"`
+		Code        *string `json:"code"`
+		ImageURL    *string `json:"image_url"`
+	}
+
+	if err := ctx.Bind(&updateData); err != nil {
+		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid input"})
+	}
+
+	// Map updates
+	if updateData.Name != nil {
+		existingAssociation.Name = *updateData.Name
+	}
+	if updateData.Description != nil {
+		existingAssociation.Description = *updateData.Description
+	}
+	if updateData.IsActive != nil {
+		existingAssociation.IsActive = *updateData.IsActive
+	}
+	if updateData.Code != nil {
+		existingAssociation.Code = *updateData.Code
+	}
+	if updateData.ImageURL != nil {
+		existingAssociation.ImageURL = *updateData.ImageURL
+	}
+
+	if err := c.AssociationService.UpdateAssociation(existingAssociation); err != nil {
+		return ctx.JSON(http.StatusConflict, map[string]string{"error": err.Error()})
+	}
+
+	return ctx.JSON(http.StatusOK, existingAssociation)
+}
