@@ -94,6 +94,44 @@ func (c *AssociationController) GetAssociationById(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, association)
 }
 
+func (c *AssociationController) GetAllAssociationsActiveAndNonActive(ctx echo.Context) error {
+	var filters []services.AssociationFilter
+	params := ctx.QueryParams().Get("filters")
+
+	if len(params) > 0 {
+		err := json.Unmarshal([]byte(params), &filters)
+		if err != nil {
+			// Retourner une erreur appropriée au lieu d'utiliser des variables non déclarées
+			return ctx.JSON(http.StatusBadRequest, map[string]interface{}{
+				"error": "Invalid filter format",
+			})
+		}
+	}
+
+	validate := validator.New(validator.WithRequiredStructEnabled())
+	for _, filter := range filters {
+		err := validate.Struct(filter)
+		if err != nil {
+			var validationErrs validator.ValidationErrors
+			if errors.As(err, &validationErrs) {
+				validationErrors := utils.GetValidationErrors(validationErrs, filter)
+				return ctx.JSON(http.StatusUnprocessableEntity, validationErrors)
+			}
+			ctx.Logger().Error(err)
+			return ctx.NoContent(http.StatusInternalServerError)
+		}
+	}
+
+	pagination := utils.PaginationFromContext(ctx)
+
+	result, err := c.AssociationService.GetAllAssociationsActiveAndNonActive(pagination, filters...)
+	if err != nil {
+		return ctx.NoContent(http.StatusInternalServerError)
+	}
+
+	return ctx.JSON(http.StatusOK, result)
+}
+
 func (c *AssociationController) GetAllAssociations(ctx echo.Context) error {
 	var filters []services.AssociationFilter
 	params := ctx.QueryParams().Get("filters")
