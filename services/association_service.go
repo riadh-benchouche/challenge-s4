@@ -69,6 +69,30 @@ type AssociationFilter struct {
 	Column string `json:"column" validate:"required,oneof=name code"`
 }
 
+func (s *AssociationService) GetAllAssociationsActiveAndNonActive(pagination utils.Pagination, filters ...AssociationFilter) (*utils.Pagination, error) {
+	var associations []models.Association
+
+	query := database.CurrentDatabase.
+		Model(models.Association{})
+
+	if len(filters) > 0 {
+		for _, filter := range filters {
+			query = query.Where(filter.Column+" ILIKE ?", "%"+fmt.Sprintf("%v", filter.Value)+"%")
+		}
+	}
+
+	err := query.Scopes(utils.Paginate(associations, &pagination, query)).
+		Find(&associations).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	pagination.Rows = associations
+
+	return &pagination, nil
+}
+
 func (s *AssociationService) GetAllAssociations(pagination utils.Pagination, filters ...AssociationFilter) (*utils.Pagination, error) {
 	var associations []models.Association
 
