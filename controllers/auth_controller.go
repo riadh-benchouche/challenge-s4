@@ -83,7 +83,7 @@ func (c *AuthController) Register(ctx echo.Context) error {
 	}
 
 	// Générer le lien de confirmation avec le token
-	confirmationLink := fmt.Sprintf("http://localhost:3000/auth/confirm?token=%s", result.User.VerificationToken)
+	confirmationLink := fmt.Sprintf("https://invooce.online/auth/confirm?token=%s", result.User.VerificationToken)
 	subject := "Confirmation de votre inscription"
 	body := fmt.Sprintf(`
    <!DOCTYPE html>
