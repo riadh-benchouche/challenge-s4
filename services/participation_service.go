@@ -2,6 +2,7 @@ package services
 
 import (
 	"backend/models"
+	"fmt"
 
 	"gorm.io/gorm"
 )
@@ -15,6 +16,12 @@ func NewParticipationService(db *gorm.DB) *ParticipationService {
 }
 
 func (s *ParticipationService) Create(participation *models.Participation) error {
+
+	var event models.Event
+	if err := s.db.First(&event, "id = ?", participation.EventID).Error; err != nil {
+		return fmt.Errorf("event not found")
+	}
+
 	return s.db.Create(participation).Error
 }
 

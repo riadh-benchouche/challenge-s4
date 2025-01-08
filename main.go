@@ -77,5 +77,4 @@ func main() {
 	addr := "0.0.0.0:3000"
 	e.Logger.Fatal(e.Start(addr))
 	fmt.Printf("Listening on %s\n", addr)
-
 }

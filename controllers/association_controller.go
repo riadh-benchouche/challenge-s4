@@ -8,6 +8,7 @@ import (
 	"backend/utils"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -32,19 +33,23 @@ func NewAssociationController() *AssociationController {
 
 func (c *AssociationController) CreateAssociation(ctx echo.Context) error {
 	var jsonBody models.Association
-
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&jsonBody); err != nil {
 		return ctx.NoContent(http.StatusBadRequest)
 	}
 
-	user, ok := ctx.Get("user").(models.User)
-	if !ok || user.ID == "" {
+	user, ok := ctx.Get("user").(*models.User)
+	if !ok {
+		fmt.Printf("User type assertion failed: %T\n", ctx.Get("user"))
+		return ctx.NoContent(http.StatusUnauthorized)
+	}
+	if user == nil || user.ID == "" {
+		fmt.Printf("User is nil or empty ID: %v\n", user)
 		return ctx.NoContent(http.StatusUnauthorized)
 	}
 
 	jsonBody.ID = utils.GenerateULID()
 	jsonBody.OwnerID = user.ID
-	jsonBody.Owner = user
+	jsonBody.Owner = *user
 	jsonBody.Code = utils.GenerateAssociationCode()
 
 	newAssociation, err := c.AssociationService.CreateAssociation(jsonBody)
@@ -236,7 +241,7 @@ func (c *AssociationController) GetAssociationEvents(ctx echo.Context) error {
 func (c *AssociationController) JoinAssociation(ctx echo.Context) error {
 	code := ctx.Param("code")
 
-	user, ok := ctx.Get("user").(models.User)
+	user, ok := ctx.Get("user").(*models.User)
 	if !ok || user.ID == "" {
 		return ctx.NoContent(http.StatusUnauthorized)
 	}
@@ -258,4 +263,48 @@ func (c *AssociationController) JoinAssociation(ctx echo.Context) error {
 	}
 
 	return ctx.JSON(http.StatusOK, joinedAssociation)
+}
+
+func (c *AssociationController) UpdateAssociation(ctx echo.Context) error {
+	associationID := ctx.Param("associationId")
+
+	existingAssociation, err := c.AssociationService.GetAssociationById(associationID)
+	if err != nil {
+		return ctx.JSON(http.StatusNotFound, map[string]string{"error": "Association not found"})
+	}
+
+	var updateData struct {
+		Name        *string `json:"name"`
+		Description *string `json:"description"`
+		IsActive    *bool   `json:"is_active"`
+		Code        *string `json:"code"`
+		ImageURL    *string `json:"image_url"`
+	}
+
+	if err := ctx.Bind(&updateData); err != nil {
+		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid input"})
+	}
+
+	// Map updates
+	if updateData.Name != nil {
+		existingAssociation.Name = *updateData.Name
+	}
+	if updateData.Description != nil {
+		existingAssociation.Description = *updateData.Description
+	}
+	if updateData.IsActive != nil {
+		existingAssociation.IsActive = *updateData.IsActive
+	}
+	if updateData.Code != nil {
+		existingAssociation.Code = *updateData.Code
+	}
+	if updateData.ImageURL != nil {
+		existingAssociation.ImageURL = *updateData.ImageURL
+	}
+
+	if err := c.AssociationService.UpdateAssociation(existingAssociation); err != nil {
+		return ctx.JSON(http.StatusConflict, map[string]string{"error": err.Error()})
+	}
+
+	return ctx.JSON(http.StatusOK, existingAssociation)
 }

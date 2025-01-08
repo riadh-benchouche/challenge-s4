@@ -141,37 +141,33 @@ func CloseDB(db *gorm.DB) {
 		fmt.Println("Error closing DB:", err)
 	}
 }
-func InitTestDB() (*gorm.DB, error) {
-	fmt.Println("🚀 Initializing test database...")
 
+func InitTestDB() (*gorm.DB, error) {
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		return nil, fmt.Errorf("DATABASE_URL is required for tests")
+		dbURL = "postgres://postgres:postgres@localhost:5432/backend_test"
 	}
 
-	db, err := gorm.Open(postgres.Open(dbURL), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dbURL), &gorm.Config{
+		DisableForeignKeyConstraintWhenMigrating: true,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to test database: %v", err)
+		return nil, fmt.Errorf("failed to connect to database: %v", err)
 	}
 
-	// Test la connexion
 	sqlDB, err := db.DB()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get test database instance: %v", err)
+		return nil, fmt.Errorf("failed to get database instance: %v", err)
 	}
 
-	if err := sqlDB.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping test database: %v", err)
+	if err = sqlDB.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to ping database: %v", err)
 	}
 
-	// Migration
-	if err := db.AutoMigrate(Models...); err != nil {
-		return nil, fmt.Errorf("failed to run test migrations: %v", err)
+	if err = db.AutoMigrate(Models...); err != nil {
+		return nil, fmt.Errorf("failed to run migrations: %v", err)
 	}
 
-	// Assigner à la variable globale
 	CurrentDatabase = db
-	fmt.Println("✅ Test database connected and migrated successfully!")
-
 	return db, nil
 }

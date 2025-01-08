@@ -1,117 +1,130 @@
-// backend/tests/test_utils/test_utils.go
 package test_utils
 
 import (
 	"backend/database"
 	"backend/enums"
 	"backend/models"
-	"backend/utils"
 	"fmt"
 	"time"
+
+	"github.com/oklog/ulid/v2"
+	"gorm.io/gorm"
 )
 
-const Password = "TestPassword123!"
+var db *gorm.DB
+
+func init() {
+	var err error
+	db, err = database.InitTestDB()
+	if err != nil {
+		panic(fmt.Sprintf("Échec initialisation BD test: %v", err))
+	}
+}
 
 func SetupTestDB() error {
-	db, err := database.InitTestDB()
+	if err := CleanTestDB(); err != nil {
+		return fmt.Errorf("échec nettoyage BD: %v", err)
+	}
+
+	err := db.AutoMigrate(database.Models...)
 	if err != nil {
-		return fmt.Errorf("failed to initialize test database: %v", err)
+		return fmt.Errorf("échec migration BD test: %v", err)
 	}
 
-	// Nettoyer les tables
-	if err := db.Exec("TRUNCATE TABLE associations CASCADE").Error; err != nil {
-		return fmt.Errorf("failed to truncate associations: %v", err)
-	}
-	if err := db.Exec("TRUNCATE TABLE users CASCADE").Error; err != nil {
-		return fmt.Errorf("failed to truncate users: %v", err)
-	}
-
+	database.CurrentDatabase = db
 	return nil
 }
 
-// GetValidAssociation retourne une association valide pour les tests
-func GetValidAssociation() models.Association {
-	owner := GetAuthenticatedUser()
-	return models.Association{
-		ID:          utils.GenerateULID(),
-		Name:        "Test Association",
-		Description: "Test Description",
-		Code:        utils.GenerateAssociationCode(),
-		IsActive:    true,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-		OwnerID:     owner.ID,
-		Owner:       owner,
+func CleanTestDB() error {
+	tables := []string{"participations", "events", "memberships", "associations", "users"}
+	for _, table := range tables {
+		if err := db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE", table)).Error; err != nil {
+			return fmt.Errorf("échec suppression table %s: %v", table, err)
+		}
+	}
+	return nil
+}
+
+func GetValidUser(role enums.Role) *models.User {
+	now := time.Now()
+	return &models.User{
+		ID:              ulid.Make().String(),
+		Name:            "Test User",
+		Email:           fmt.Sprintf("test.%s@example.com", ulid.Make().String()),
+		Role:            role,
+		IsConfirmed:     true,
+		IsActive:        true,
+		EmailVerifiedAt: &now,
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	}
 }
 
-// GetAuthenticatedUser retourne un utilisateur valide pour les tests
-func GetAuthenticatedUser() models.User {
-	plainPassword := Password
-	return models.User{
-		ID:            utils.GenerateULID(),
-		Name:          "Test User",
-		Email:         "test@example.com",
-		PlainPassword: &plainPassword,
-		Role:          enums.UserRole,
-		IsActive:      true,
+func GetAdminUser() *models.User {
+	return GetValidUser(enums.AdminRole)
+}
+
+func GetAuthenticatedUser() *models.User {
+	return GetValidUser(enums.UserRole)
+}
+
+func GetValidAssociation() *models.Association {
+	return &models.Association{
+		ID:          ulid.Make().String(),
+		Name:        "Test Association",
+		Description: "Test Description",
+		IsActive:    false,
+		ImageURL:    "https://test.com/image.jpg",
+	}
+}
+
+func CreateUserAndAssociation() (*models.User, *models.Association) {
+	user := GetAuthenticatedUser()
+	if err := db.Create(user).Error; err != nil {
+		panic(fmt.Sprintf("Échec création utilisateur: %v", err))
+	}
+
+	association := GetValidAssociation()
+	association.OwnerID = user.ID
+	association.Owner = *user
+
+	if err := db.Create(association).Error; err != nil {
+		panic(fmt.Sprintf("Échec création association: %v", err))
+	}
+
+	membership := &models.Membership{
+		UserID:        user.ID,
+		AssociationID: association.ID,
+		JoinedAt:      time.Now(),
+	}
+
+	if err := db.Create(membership).Error; err != nil {
+		panic(fmt.Sprintf("Échec création membership: %v", err))
+	}
+
+	return user, association
+}
+
+func GetValidEvent(associationID string) models.Event {
+	return models.Event{
+		ID:            ulid.Make().String(),
+		Name:          "Test Event",
+		Description:   "Test Description",
+		Location:      "Test Location",
+		AssociationID: associationID,
+		Date:          time.Now().Add(24 * time.Hour),
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
 	}
 }
 
-// CreateUserAndAssociation crée un utilisateur et une association pour les tests
-func CreateUserAndAssociation() (models.User, models.Association) {
-	SetupTestDB()
-	user := GetAuthenticatedUser()
-	database.CurrentDatabase.Create(&user)
-
-	association := GetValidAssociation()
-	association.OwnerID = user.ID
-	association.Owner = user
-	database.CurrentDatabase.Create(&association)
-	return user, association
-}
-
-// CreateUser crée un utilisateur pour les tests
-func CreateUser(role enums.Role) (*models.User, error) {
-	user := GetAuthenticatedUser()
-	user.Role = role
-	err := database.CurrentDatabase.Create(&user).Error
-	if err != nil {
-		return nil, err
+func GetValidParticipation(userID string, eventID string) models.Participation {
+	return models.Participation{
+		ID:          ulid.Make().String(),
+		UserID:      userID,
+		EventID:     eventID,
+		IsAttending: true,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
-	return &user, nil
-}
-
-// GetUserToken récupère un token pour un utilisateur donné
-func GetUserToken(email string, password string) (*string, error) {
-	user, err := CreateUser(enums.UserRole)
-	if err != nil {
-		return nil, err
-	}
-	token := generateTokenForUser(*user)
-	return &token, nil
-}
-
-// GetTokenForNewUser crée un nouvel utilisateur et retourne son token
-func GetTokenForNewUser(role enums.Role) (*string, error) {
-	user, err := CreateUser(role)
-	if err != nil {
-		return nil, err
-	}
-	token := generateTokenForUser(*user)
-	return &token, nil
-}
-
-// GetValidUser retourne un utilisateur valide avec le rôle spécifié
-func GetValidUser(role enums.Role) models.User {
-	user := GetAuthenticatedUser()
-	user.Role = role
-	return user
-}
-
-// Fonction helper privée pour générer un token
-func generateTokenForUser(user models.User) string {
-	return "test_token_" + user.ID // Pour les tests, on retourne un token simple
 }

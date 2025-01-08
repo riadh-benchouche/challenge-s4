@@ -159,3 +159,33 @@ func (s *AssociationService) JoinAssociationByCode(userID string, code string) (
 
 	return &association, nil
 }
+
+func (s *AssociationService) UpdateAssociation(association *models.Association) error {
+	var existingAssociation models.Association
+	if err := database.CurrentDatabase.First(&existingAssociation, "id = ?", association.ID).Error; err != nil {
+		return fmt.Errorf("Association not found: %w", err)
+	}
+
+	// Check for unique code conflict
+	if association.Code != "" && association.Code != existingAssociation.Code {
+		var otherAssociation models.Association
+		if err := database.CurrentDatabase.First(&otherAssociation, "code = ?", association.Code).Error; err == nil {
+			return fmt.Errorf("Code conflict: another association is already using this code")
+		}
+	}
+
+	// Update fields
+	updates := map[string]interface{}{
+		"name":        association.Name,
+		"description": association.Description,
+		"is_active":   association.IsActive,
+		"code":        association.Code,
+		"image_url":   association.ImageURL,
+	}
+
+	if err := database.CurrentDatabase.Model(&existingAssociation).Updates(updates).Error; err != nil {
+		return fmt.Errorf("Failed to update association: %w", err)
+	}
+
+	return nil
+}
