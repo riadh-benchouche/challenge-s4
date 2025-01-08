@@ -8,7 +8,6 @@ import (
 	"backend/utils"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -37,19 +36,14 @@ func (c *AssociationController) CreateAssociation(ctx echo.Context) error {
 		return ctx.NoContent(http.StatusBadRequest)
 	}
 
-	user, ok := ctx.Get("user").(*models.User)
-	if !ok {
-		fmt.Printf("User type assertion failed: %T\n", ctx.Get("user"))
-		return ctx.NoContent(http.StatusUnauthorized)
-	}
-	if user == nil || user.ID == "" {
-		fmt.Printf("User is nil or empty ID: %v\n", user)
+	user, ok := ctx.Get("user").(models.User)
+	if !ok || user.ID == "" {
 		return ctx.NoContent(http.StatusUnauthorized)
 	}
 
 	jsonBody.ID = utils.GenerateULID()
 	jsonBody.OwnerID = user.ID
-	jsonBody.Owner = *user
+	jsonBody.Owner = user
 	jsonBody.Code = utils.GenerateAssociationCode()
 
 	newAssociation, err := c.AssociationService.CreateAssociation(jsonBody)
@@ -279,7 +273,7 @@ func (c *AssociationController) GetAssociationEvents(ctx echo.Context) error {
 func (c *AssociationController) JoinAssociation(ctx echo.Context) error {
 	code := ctx.Param("code")
 
-	user, ok := ctx.Get("user").(*models.User)
+	user, ok := ctx.Get("user").(models.User)
 	if !ok || user.ID == "" {
 		return ctx.NoContent(http.StatusUnauthorized)
 	}
