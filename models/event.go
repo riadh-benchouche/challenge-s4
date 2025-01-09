@@ -30,6 +30,6 @@ type Event struct {
 func (e *Event) BeforeCreate(tx *gorm.DB) (err error) {
 	e.ID = utils.GenerateULID()
 	e.CreatedAt = time.Now()
-	e.Date = time.Now()
+	e.UpdatedAt = time.Now()
 	return nil
 }
