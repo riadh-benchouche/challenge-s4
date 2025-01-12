@@ -17,6 +17,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"github.com/oklog/ulid/v2"
+	"gorm.io/gorm"
 )
 
 type UserController struct {
@@ -424,4 +425,61 @@ func (c *UserController) GetAssociationsEvents(ctx echo.Context) error {
 	}
 
 	return ctx.JSON(http.StatusOK, events)
+}
+
+func (c *UserController) ConfirmParticipation(ctx echo.Context) error {
+	// Récupérer l'ID de la participation à confirmer depuis l'URL
+	participationID := ctx.Param("id")
+
+	// Récupérer l'utilisateur actuel depuis le contexte
+	currentUser := ctx.Get("user")
+	if currentUser == nil {
+		return ctx.JSON(http.StatusForbidden, map[string]string{"error": "Unauthorized"})
+	}
+
+	// Vérifiez que l'utilisateur est bien de type models.User
+	user, ok := currentUser.(models.User)
+	if !ok {
+		return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": "Invalid user data"})
+	}
+
+	associationLeaderID := user.ID // ID de l'utilisateur actuel (leader de l'association)
+
+	// Récupérer la participation avec les relations nécessaires
+	var participation models.Participation
+	if err := database.CurrentDatabase.Preload("Event.Association").
+		Preload("Event.Category").
+		Preload("User"). // Charger l'utilisateur lié à la participation
+		First(&participation, "id = ?", participationID).Error; err != nil {
+		ctx.Logger().Errorf("Participation not found: %v", err)
+		return ctx.JSON(http.StatusNotFound, map[string]string{"error": "Participation not found"})
+	}
+
+	// Vérifier que l'utilisateur est bien le leader de l'association de l'événement
+	if participation.Event.Association.OwnerID != associationLeaderID {
+		return ctx.JSON(http.StatusForbidden, map[string]string{"error": "You are not authorized to confirm this participation"})
+	}
+
+	// Vérifier si la participation est déjà confirmée ou déclinée
+	if participation.Status != "pending" {
+		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "Participation already handled"})
+	}
+
+	// Mettre à jour uniquement les champs spécifiques de la participation
+	if err := database.CurrentDatabase.Model(&models.Participation{}).Where("id = ?", participationID).Updates(map[string]interface{}{
+		"status":       "confirmed",
+		"is_attending": true,
+	}).Error; err != nil {
+		ctx.Logger().Errorf("Failed to update participation: %v", err)
+		return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update participation"})
+	}
+
+	// Incrémenter les points pour l'utilisateur lié à la participation
+	if err := database.CurrentDatabase.Model(&models.User{}).Where("id = ?", participation.UserID).Update("points_open", gorm.Expr("points_open + ?", participation.Event.Category.Note)).Error; err != nil {
+		ctx.Logger().Errorf("Failed to update user points: %v", err)
+		return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update user points"})
+	}
+
+	// Retourner une réponse réussie
+	return ctx.JSON(http.StatusOK, map[string]string{"message": "Participation confirmed successfully"})
 }

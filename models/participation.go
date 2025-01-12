@@ -8,10 +8,12 @@ import (
 )
 
 type Participation struct {
-	ID          string    `json:"id" gorm:"primaryKey" validate:"required"`
-	IsAttending bool      `json:"is_attending" gorm:"default:false" validate:"-" faker:"bool"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          string `json:"id" gorm:"primaryKey" validate:"required"`
+	IsAttending bool   `json:"is_attending" gorm:"default:false" validate:"-" faker:"bool"`
+	Status      string `json:"status" gorm:"default:'pending'" validate:"oneof=pending confirmed declined"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 
 	// Foreign keys
 	UserID  string `json:"user_id" validate:"required" gorm:"primaryKey" faker:"-"`

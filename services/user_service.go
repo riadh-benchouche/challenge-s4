@@ -220,8 +220,6 @@ type UserFilter struct {
 	Column string `json:"column" validate:"required,oneof=name email"`
 }
 
-
-
 func (s *UserService) GetUserEvents(userID string, pagination utils.Pagination) (*utils.Pagination, error) {
 	var events []models.Event
 
@@ -286,4 +284,3 @@ func getEventIDs(events []models.Event) []string {
 	}
 	return ids
 }
-
