@@ -19,6 +19,7 @@ func (r *AuthRouter) SetupRoutes(e *echo.Echo) {
 	// Routes existantes
 	group.POST("/login", authController.Login)
 	group.POST("/register", authController.Register)
+	group.POST("/refresh", authController.RefreshToken)
 	fmt.Println("✅ Auth routes configured")
 
 	// Routes de confirmation d'email avec le middleware de logging

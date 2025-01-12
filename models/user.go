@@ -8,6 +8,11 @@ import (
 	"gorm.io/gorm"
 )
 
+type TokenPair struct {
+	Token        string `json:"token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
 type User struct {
 	ID              string     `json:"id" gorm:"primaryKey" validate:"required"`
 	Name            string     `json:"name" validate:"required,min=2,max=50" faker:"name"`

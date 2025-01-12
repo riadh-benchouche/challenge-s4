@@ -262,16 +262,11 @@ func (c *UserController) GetUserAssociations(ctx echo.Context) error {
 
 	associations := user.Associations
 
-	associationResources := make([]resources.AssociationResource, len(associations))
-	for i, association := range associations {
-		associationResources[i] = resources.NewAssociationResource(association)
-	}
-
-	if len(associationResources) == 0 {
+	if len(associations) == 0 {
 		return ctx.JSONPretty(http.StatusNoContent, "Aucune association trouvée", " ")
 	}
 
-	return ctx.JSON(http.StatusOK, associationResources)
+	return ctx.JSON(http.StatusOK, associations)
 }
 
 func (c *UserController) JoinAssociation(ctx echo.Context) error {

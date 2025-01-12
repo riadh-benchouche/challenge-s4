@@ -37,8 +37,9 @@ func (s *AuthService) CheckPasswordHash(password, hash string) bool {
 }
 
 type LoginResponse struct {
-	Token string      `json:"token"`
-	User  models.User `json:"user"`
+	Token        string      `json:"token"`
+	RefreshToken string      `json:"refresh_token"`
+	User         models.User `json:"user"`
 }
 
 type RegisterResponse struct {
@@ -71,23 +72,51 @@ func (s *AuthService) Login(email, password string) (*LoginResponse, error) {
 		return nil, errors.ErrInternal
 	}
 
-	t := jwt.NewWithClaims(jwt.SigningMethodHS256,
+	// Générer l'access token (courte durée)
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256,
 		jwt.MapClaims{
 			"id":    targetUser.ID,
 			"name":  targetUser.Name,
 			"email": targetUser.Email,
 			"role":  targetUser.Role,
-			"exp":   time.Now().Add(4 * time.Hour).Unix(),
+			"exp":   time.Now().Add(48 * time.Hour).Unix(), // 15 minutes
 			"iat":   time.Now().Unix(),
 		},
 	)
 
-	token, err := t.SignedString([]byte(jwtSecret))
+	// Générer le refresh token (longue durée)
+	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256,
+		jwt.MapClaims{
+			"id":  targetUser.ID,
+			"exp": time.Now().Add(7 * 24 * time.Hour).Unix(), // 7 jours
+			"iat": time.Now().Unix(),
+		},
+	)
+
+	// Signer les tokens
+	accessTokenString, err := accessToken.SignedString([]byte(jwtSecret))
 	if err != nil {
 		return nil, errors.ErrInternal
 	}
 
-	return &LoginResponse{Token: token, User: targetUser}, nil
+	refreshTokenString, err := refreshToken.SignedString([]byte(jwtSecret))
+	if err != nil {
+		return nil, errors.ErrInternal
+	}
+
+	// Stocker le refresh token dans Redis
+	ctx := context.Background()
+	key := fmt.Sprintf("refresh_token:%s", targetUser.ID)
+	err = config.RedisClient.Set(ctx, key, refreshTokenString, 7*24*time.Hour).Err()
+	if err != nil {
+		return nil, errors.ErrInternal
+	}
+
+	return &LoginResponse{
+		Token:        accessTokenString,
+		RefreshToken: refreshTokenString,
+		User:         targetUser,
+	}, nil
 }
 
 func (s *AuthService) Register(request requests.RegisterRequest) (*RegisterResponse, error) {
@@ -221,4 +250,84 @@ func (s *AuthService) ValidateToken(tokenString string) (*jwt.Token, error) {
 	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		return []byte(jwtSecret), nil
 	})
+}
+
+func (s *AuthService) GenerateTokenPair(user models.User) (*models.TokenPair, error) {
+	// Générer l'access token (comme avant, mais avec une durée plus courte)
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256,
+		jwt.MapClaims{
+			"id":    user.ID,
+			"email": user.Email,
+			"role":  user.Role,
+			"exp":   time.Now().Add(15 * time.Minute).Unix(), // Durée plus courte
+			"iat":   time.Now().Unix(),
+		})
+
+	// Générer le refresh token (plus long)
+	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256,
+		jwt.MapClaims{
+			"id":  user.ID,
+			"exp": time.Now().Add(7 * 24 * time.Hour).Unix(), // 7 jours
+			"iat": time.Now().Unix(),
+		})
+
+	jwtSecret := os.Getenv("JWT_KEY")
+
+	accessTokenString, err := accessToken.SignedString([]byte(jwtSecret))
+	if err != nil {
+		return nil, err
+	}
+
+	refreshTokenString, err := refreshToken.SignedString([]byte(jwtSecret))
+	if err != nil {
+		return nil, err
+	}
+
+	// Stocker le refresh token dans Redis
+	ctx := context.Background()
+	key := fmt.Sprintf("refresh_token:%s", user.ID)
+	err = config.RedisClient.Set(ctx, key, refreshTokenString, 7*24*time.Hour).Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.TokenPair{
+		Token:        accessTokenString,
+		RefreshToken: refreshTokenString,
+	}, nil
+}
+
+func (s *AuthService) RefreshToken(refreshToken string) (*models.TokenPair, error) {
+	// Valider le refresh token
+	token, err := s.ValidateToken(refreshToken)
+	if err != nil {
+		return nil, errors.ErrInvalidToken
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, errors.ErrInvalidToken
+	}
+
+	userID, ok := claims["id"].(string)
+	if !ok {
+		return nil, errors.ErrInvalidToken
+	}
+
+	// Vérifier si le refresh token est dans Redis
+	ctx := context.Background()
+	key := fmt.Sprintf("refresh_token:%s", userID)
+	storedToken, err := config.RedisClient.Get(ctx, key).Result()
+	if err != nil || storedToken != refreshToken {
+		return nil, errors.ErrInvalidToken
+	}
+
+	// Récupérer l'utilisateur
+	var user models.User
+	if err := database.CurrentDatabase.First(&user, userID).Error; err != nil {
+		return nil, errors.ErrUserNotFound
+	}
+
+	// Générer une nouvelle paire de tokens
+	return s.GenerateTokenPair(user)
 }
