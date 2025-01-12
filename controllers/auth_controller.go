@@ -289,3 +289,32 @@ func (c *AuthController) ResendConfirmation(ctx echo.Context) error {
 		"message": "Nouveau email de confirmation envoyé",
 	})
 }
+
+func (c *AuthController) RefreshToken(ctx echo.Context) error {
+	refreshToken := ctx.FormValue("refresh_token")
+	if refreshToken == "" {
+		return ctx.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Refresh token is required",
+		})
+	}
+
+	tokens, err := c.authService.RefreshToken(refreshToken)
+	if err != nil {
+		switch err {
+		case coreErrors.ErrInvalidToken:
+			return ctx.JSON(http.StatusUnauthorized, map[string]string{
+				"error": "Invalid or expired refresh token",
+			})
+		case coreErrors.ErrUserNotFound:
+			return ctx.JSON(http.StatusNotFound, map[string]string{
+				"error": "User not found",
+			})
+		default:
+			return ctx.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "Internal server error",
+			})
+		}
+	}
+
+	return ctx.JSON(http.StatusOK, tokens)
+}

@@ -8,6 +8,11 @@ import (
 	"gorm.io/gorm"
 )
 
+type TokenPair struct {
+	Token        string `json:"token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
 type User struct {
 	ID              string     `json:"id" gorm:"primaryKey" validate:"required"`
 	Name            string     `json:"name" validate:"required,min=2,max=50" faker:"name"`
@@ -21,6 +26,7 @@ type User struct {
 	UpdatedAt       time.Time  `json:"updated_at"`
 	ImageURL        string     `json:"image_url" faker:"url"`
 	EmailVerifiedAt *time.Time `json:"email_verified_at" gorm:"index"`
+	PointsOpen      int        `json:"points_open" gorm:"default:0"`
 
 	AssociationsOwned []Association   `json:"associations_owned" gorm:"foreignKey:OwnerID" faker:"-"`
 	Memberships       []Membership    `json:"memberships" gorm:"foreignKey:UserID" faker:"-"`
