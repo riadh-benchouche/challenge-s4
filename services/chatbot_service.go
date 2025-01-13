@@ -106,7 +106,7 @@ func (cs *ChatService) GetChatGPTResponse(message string, dbData []models.Associ
 	return "", fmt.Errorf("empty response from ChatGPT")
 }
 
-func (as *AssociationService) SearchAssociations() ([]models.AssociationSummary, error) {
+func (s *AssociationService) SearchAssociations() ([]models.AssociationSummary, error) {
 	var associations []models.AssociationSummary
 	if err := database.CurrentDatabase.
 		Table("associations").

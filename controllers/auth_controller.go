@@ -291,14 +291,27 @@ func (c *AuthController) ResendConfirmation(ctx echo.Context) error {
 }
 
 func (c *AuthController) RefreshToken(ctx echo.Context) error {
-	refreshToken := ctx.FormValue("refresh_token")
-	if refreshToken == "" {
+	// Structure pour parser le JSON
+	var request struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+
+	// Décoder le JSON du body
+	if err := ctx.Bind(&request); err != nil {
+		return ctx.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid request format",
+		})
+	}
+
+	fmt.Println("Refresh token reçu:", request.RefreshToken) // Pour debug
+
+	if request.RefreshToken == "" {
 		return ctx.JSON(http.StatusBadRequest, map[string]string{
 			"error": "Refresh token is required",
 		})
 	}
 
-	tokens, err := c.authService.RefreshToken(refreshToken)
+	tokens, err := c.authService.RefreshToken(request.RefreshToken)
 	if err != nil {
 		switch err {
 		case coreErrors.ErrInvalidToken:
