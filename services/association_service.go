@@ -213,3 +213,17 @@ func (s *AssociationService) UpdateAssociation(association *models.Association) 
 
 	return nil
 }
+
+func (s *AssociationService) CheckMembership(userId string, associationId string) (bool, error) {
+	var membership models.Membership
+	err := database.CurrentDatabase.Where("user_id = ? AND association_id = ?", userId, associationId).First(&membership).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return true, nil
+}
