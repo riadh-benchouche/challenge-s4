@@ -63,7 +63,9 @@ func NewBasicUserResource(user models.User) BasicUserResource {
 }
 
 type ParticipationResource struct {
+	ID          string            `json:"id"`
 	IsAttending bool              `json:"is_attending"`
+	Status      string            `json:"status"`
 	CreatedAt   string            `json:"created_at"`
 	UpdatedAt   string            `json:"updated_at"`
 	User        BasicUserResource `json:"user"`
@@ -72,7 +74,9 @@ type ParticipationResource struct {
 
 func NewParticipationResource(participation models.Participation) ParticipationResource {
 	return ParticipationResource{
+		ID:          participation.ID,
 		IsAttending: participation.IsAttending,
+		Status:      participation.Status,
 		CreatedAt:   participation.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:   participation.UpdatedAt.Format(time.RFC3339),
 		User:        NewBasicUserResource(*participation.User), // Utilisation de BasicUserResource
