@@ -69,10 +69,12 @@ func (s *EventService) UpdateEvent(event *models.Event) error {
 	}
 
 	if err := database.CurrentDatabase.Model(&existingEvent).Updates(map[string]interface{}{
-		"name":        event.Name,
-		"description": event.Description,
-		"date":        event.Date,
-		"location":    event.Location,
+		"name":           event.Name,
+		"description":    event.Description,
+		"date":           event.Date,
+		"location":       event.Location,
+		"category_id":    event.CategoryID,
+		"association_id": event.AssociationID,
 	}).Error; err != nil {
 		return err
 	}

@@ -99,10 +99,12 @@ func (c *EventController) UpdateEvent(ctx echo.Context) error {
 	}
 
 	var updateData struct {
-		Name        *string `json:"name"`
-		Description *string `json:"description"`
-		Date        *string `json:"date"`
-		Location    *string `json:"location"`
+		Name          *string `json:"name"`
+		Description   *string `json:"description"`
+		Date          *string `json:"date"`
+		Location      *string `json:"location"`
+		CategoryId    *string `json:"category_id"`
+		AssociationId *string `json:"association_id"`
 	}
 
 	if err := ctx.Bind(&updateData); err != nil {
@@ -124,6 +126,14 @@ func (c *EventController) UpdateEvent(ctx echo.Context) error {
 	}
 	if updateData.Location != nil {
 		existingEvent.Location = *updateData.Location
+	}
+
+	if updateData.CategoryId != nil {
+		existingEvent.CategoryID = *updateData.CategoryId
+	}
+
+	if updateData.AssociationId != nil {
+		existingEvent.AssociationID = *updateData.AssociationId
 	}
 
 	if err := c.EventService.UpdateEvent(existingEvent); err != nil {
