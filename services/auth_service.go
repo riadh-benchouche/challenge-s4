@@ -79,7 +79,7 @@ func (s *AuthService) Login(email, password string) (*LoginResponse, error) {
 			"name":  targetUser.Name,
 			"email": targetUser.Email,
 			"role":  targetUser.Role,
-			"exp":   time.Now().Add(48 * time.Hour).Unix(), // 15 minutes
+			"exp":   time.Now().Add(7 * 24 * time.Hour).Unix(), // 15 minutes
 			"iat":   time.Now().Unix(),
 		},
 	)
@@ -259,7 +259,7 @@ func (s *AuthService) GenerateTokenPair(user models.User) (*models.TokenPair, er
 			"id":    user.ID,
 			"email": user.Email,
 			"role":  user.Role,
-			"exp":   time.Now().Add(15 * time.Minute).Unix(), // Durée plus courte
+			"exp":   time.Now().Add(7 * 24 * time.Hour).Unix(), // Durée plus courte
 			"iat":   time.Now().Unix(),
 		})
 
@@ -324,7 +324,7 @@ func (s *AuthService) RefreshToken(refreshToken string) (*models.TokenPair, erro
 
 	// Récupérer l'utilisateur
 	var user models.User
-	if err := database.CurrentDatabase.First(&user, userID).Error; err != nil {
+	if err := database.CurrentDatabase.Where("id = ?", userID).First(&user).Error; err != nil {
 		return nil, errors.ErrUserNotFound
 	}
 

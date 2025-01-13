@@ -340,3 +340,19 @@ func (c *AssociationController) UpdateAssociation(ctx echo.Context) error {
 
 	return ctx.JSON(http.StatusOK, existingAssociation)
 }
+
+func (c *AssociationController) CheckMembership(ctx echo.Context) error {
+	associationID := ctx.Param("associationId")
+
+	user, ok := ctx.Get("user").(models.User)
+	if !ok || user.ID == "" {
+		return ctx.NoContent(http.StatusUnauthorized)
+	}
+
+	membership, err := c.AssociationService.CheckMembership(user.ID, associationID)
+	if err != nil {
+		return ctx.JSON(http.StatusNotFound, map[string]string{"error": err.Error()})
+	}
+
+	return ctx.JSON(http.StatusOK, map[string]bool{"isMember": membership})
+}

@@ -24,5 +24,6 @@ func (r *AssociationRouter) SetupRoutes(e *echo.Echo) {
 	group.GET("/:associationId/events", associationController.GetAssociationEvents, middlewares.AuthenticationMiddleware(), middlewares.AssociationMembershipMiddleware)
 	group.POST("/join/:code", associationController.JoinAssociation, middlewares.AuthenticationMiddleware())
 	group.PUT("/:associationId", associationController.UpdateAssociation, middlewares.AuthenticationMiddleware(enums.AdminRole, enums.AssociationLeaderRole), middlewares.AssociationMembershipMiddleware)
+	group.GET("/:associationId/check-membership", associationController.CheckMembership, middlewares.AuthenticationMiddleware())
 
 }
