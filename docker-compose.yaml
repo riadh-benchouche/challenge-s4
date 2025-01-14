@@ -21,6 +21,12 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: challenge-postgres
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DATABASE}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -57,4 +63,9 @@ services:
 
 volumes:
   postgresdata:
+    driver: local
+    driver_opts:
+      type: none
+      device: /data/postgres
+      o: bind
   dragonflydata:
