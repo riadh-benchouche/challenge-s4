@@ -53,7 +53,7 @@ func InitDB() (*gorm.DB, error) {
 		Password: os.Getenv("POSTGRES_PASSWORD"),
 		Name:     os.Getenv("POSTGRES_DATABASE"),
 		Port:     os.Getenv("POSTGRES_PORT"),
-		SSLMode:  "disable",
+		SSLMode:  "require",
 	}
 
 	// Chaîne de connexion
