@@ -162,6 +162,16 @@ func (c *AuthController) Register(ctx echo.Context) error {
 		return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": "Unable to send confirmation email"})
 	}
 
+	//Envoyer la notification push
+	var user models.User
+	if user.FirebaseToken != "" {
+		notificationErr := utils.SendNotification(user.FirebaseToken, "Bienvenue sur VotreApp !",
+			fmt.Sprintf("Un email de confirmation a été envoyé à %s. Vérifiez votre boîte mail.", result.User.Email))
+		if notificationErr != nil {
+			ctx.Logger().Error("Erreur lors de l'envoi de la notification push :", notificationErr)
+		}
+	}
+
 	return ctx.JSON(http.StatusCreated, map[string]string{
 		"message": "Inscription réussie. Veuillez vérifier votre email pour confirmer votre compte",
 	})
@@ -249,6 +259,15 @@ func (c *AuthController) ConfirmEmail(ctx echo.Context) error {
 
 	if err := utils.SendEmail(user.Email, subject, body); err != nil {
 		ctx.Logger().Error("Erreur lors de l'envoi de l'email de confirmation :", err)
+	}
+
+	// Envoyer une notification push à l'utilisateur
+	if user.FirebaseToken != "" {
+		notificationErr := utils.SendNotification(user.FirebaseToken, "Compte confirmé",
+			"Votre compte a été confirmé avec succès. Vous pouvez maintenant vous connecter.")
+		if notificationErr != nil {
+			ctx.Logger().Error("Erreur lors de l'envoi de la notification push :", notificationErr)
+		}
 	}
 
 	return ctx.JSON(http.StatusOK, map[string]string{
