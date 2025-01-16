@@ -227,3 +227,21 @@ func (s *AssociationService) CheckMembership(userId string, associationId string
 
 	return true, nil
 }
+
+func (s *AssociationService) LeaveAssociation(userId string, associationId string) error {
+	var membership models.Membership
+	err := database.CurrentDatabase.Where("user_id = ? AND association_id = ?", userId, associationId).First(&membership).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return coreErrors.ErrMembershipNotFound
+		}
+		return err
+	}
+
+	if err := database.CurrentDatabase.Delete(&membership).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
