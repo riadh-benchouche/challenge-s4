@@ -239,7 +239,7 @@ func (s *AssociationService) LeaveAssociation(userId string, associationId strin
 		return err
 	}
 
-	if err := database.CurrentDatabase.Delete(&membership).Error; err != nil {
+	if err := database.CurrentDatabase.Unscoped().Delete(&membership).Error; err != nil {
 		return err
 	}
 
