@@ -153,12 +153,13 @@ func (s *AuthService) Register(request requests.RegisterRequest) (*RegisterRespo
 	}
 
 	newUser := models.User{
-		ID:       utils.GenerateULID(),
-		Name:     request.Name,
-		Email:    request.Email,
-		Password: hashedPassword,
-		Role:     "user",
-		IsActive: false,
+		ID:            utils.GenerateULID(),
+		Name:          request.Name,
+		Email:         request.Email,
+		Password:      hashedPassword,
+		FirebaseToken: request.FirebaseToken,
+		Role:          "user",
+		IsActive:      false,
 	}
 
 	if err := database.CurrentDatabase.Create(&newUser).Error; err != nil {

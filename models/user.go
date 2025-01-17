@@ -27,6 +27,7 @@ type User struct {
 	ImageURL        string     `json:"image_url" faker:"url"`
 	EmailVerifiedAt *time.Time `json:"email_verified_at" gorm:"index"`
 	PointsOpen      int        `json:"points_open" gorm:"default:0"`
+	FirebaseToken   string     `json:"firebase_token" validate:"omitempty"`
 
 	AssociationsOwned []Association   `json:"associations_owned" gorm:"foreignKey:OwnerID" faker:"-"`
 	Memberships       []Membership    `json:"memberships" gorm:"foreignKey:UserID" faker:"-"`

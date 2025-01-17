@@ -66,6 +66,8 @@ func (c *AuthController) Register(ctx echo.Context) error {
 		return ctx.NoContent(http.StatusBadRequest)
 	}
 
+	fmt.Printf("Token Firebase reçu dans la requête: %s\n", jsonBody.FirebaseToken)
+
 	validate := validator.New(validator.WithRequiredStructEnabled())
 	err = validate.Struct(jsonBody)
 	if err != nil {
@@ -162,6 +164,27 @@ func (c *AuthController) Register(ctx echo.Context) error {
 		return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": "Unable to send confirmation email"})
 	}
 
+	var newUser models.User
+	if err := database.CurrentDatabase.Where("email = ?", jsonBody.Email).First(&newUser).Error; err != nil {
+		fmt.Printf("Erreur lors de la récupération de l'utilisateur: %v\n", err)
+	} else {
+		fmt.Printf("Firebase Token dans la BDD: %s\n", newUser.FirebaseToken)
+
+		if newUser.FirebaseToken != "" {
+			fmt.Printf("Tentative d'envoi de notification avec le token: %s\n", newUser.FirebaseToken)
+			notificationErr := utils.SendNotification(newUser.FirebaseToken, "Bienvenue sur VotreApp !",
+				fmt.Sprintf("Un email de confirmation a été envoyé à %s. Vérifiez votre boîte mail.", newUser.Email))
+			if notificationErr != nil {
+				fmt.Printf("Erreur lors de l'envoi de la notification: %v\n", notificationErr)
+				ctx.Logger().Error("Erreur lors de l'envoi de la notification push :", notificationErr)
+			} else {
+				fmt.Println("Notification push envoyée avec succès")
+			}
+		} else {
+			fmt.Println("Token Firebase absent de la BDD")
+		}
+	}
+
 	return ctx.JSON(http.StatusCreated, map[string]string{
 		"message": "Inscription réussie. Veuillez vérifier votre email pour confirmer votre compte",
 	})
@@ -249,6 +272,15 @@ func (c *AuthController) ConfirmEmail(ctx echo.Context) error {
 
 	if err := utils.SendEmail(user.Email, subject, body); err != nil {
 		ctx.Logger().Error("Erreur lors de l'envoi de l'email de confirmation :", err)
+	}
+
+	// Envoyer une notification push à l'utilisateur
+	if user.FirebaseToken != "" {
+		notificationErr := utils.SendNotification(user.FirebaseToken, "Compte confirmé",
+			"Votre compte a été confirmé avec succès. Vous pouvez maintenant vous connecter.")
+		if notificationErr != nil {
+			ctx.Logger().Error("Erreur lors de l'envoi de la notification push :", notificationErr)
+		}
 	}
 
 	return ctx.JSON(http.StatusOK, map[string]string{
