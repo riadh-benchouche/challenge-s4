@@ -25,6 +25,7 @@ type UserResource struct {
 	VerificationToken string                `json:"verification_token,omitempty"`
 	EmailVerifiedAt   *time.Time            `json:"email_verified_at"`
 	ImageURL          string                `json:"image_url"`
+	FirebaseToken     string                `json:"firebase_token"`
 }
 
 func NewUserResource(user models.User) UserResource {
@@ -50,6 +51,7 @@ func NewUserResource(user models.User) UserResource {
 		Memberships:     memberships,
 		ImageURL:        user.ImageURL,
 		EmailVerifiedAt: user.EmailVerifiedAt,
+		FirebaseToken:   user.FirebaseToken,
 	}
 }
 
