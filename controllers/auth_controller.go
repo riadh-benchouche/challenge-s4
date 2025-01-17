@@ -283,9 +283,27 @@ func (c *AuthController) ConfirmEmail(ctx echo.Context) error {
 		}
 	}
 
-	return ctx.JSON(http.StatusOK, map[string]string{
-		"message": "Email confirmé avec succès",
-	})
+	return ctx.HTML(http.StatusOK, `
+		<!DOCTYPE html>
+		<html lang="fr">
+		<head>
+			<meta charset="UTF-8">
+			<title>Email confirmé</title>
+			<style>
+				body { font-family: Arial, sans-serif; background-color: #d4edda; color: #007bff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+				.container { text-align: center; padding: 20px; background-color: #ffffff; border: 1px solid #c3e6cb; border-radius: 10px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+				button { margin-top: 10px; padding: 10px 20px; background-color: #c3e6cb; color: #007bff; border: none; border-radius: 5px; cursor: pointer; }
+				button:hover { background-color: #d4edda; }
+			</style>
+		</head>
+		<body>
+			<div class="container">
+				<h1>Félicitations</h1>
+				<p>Votre email a été confirmé avec succès ! Vous pouvez maintenant vous connecter à votre compte.</p>
+			</div>
+		</body>
+		</html>
+	`)
 }
 
 func (c *AuthController) ResendConfirmation(ctx echo.Context) error {
