@@ -332,3 +332,66 @@ func (s *AuthService) RefreshToken(refreshToken string) (*models.TokenPair, erro
 	// Générer une nouvelle paire de tokens
 	return s.GenerateTokenPair(user)
 }
+
+// GeneratePasswordResetToken génère un token de réinitialisation de mot de passe pour un utilisateur.
+func (s *AuthService) GeneratePasswordResetToken(email string) (string, error) {
+	ctx := context.Background()
+
+	// Vérifier si l'utilisateur existe
+	var user models.User
+	result := database.CurrentDatabase.Where("email = ?", email).First(&user)
+	if result.Error != nil {
+		return "", errors.ErrUserNotFound
+	}
+
+	// Générer un token unique
+	resetToken := utils.GenerateULID()
+
+	// Stocker le token dans Redis avec une durée d'expiration de 1 heure
+	tokenKey := fmt.Sprintf("password_reset:%s", resetToken)
+	err := config.RedisClient.Set(ctx, tokenKey, user.ID, time.Hour).Err()
+	if err != nil {
+		return "", errors.ErrInternal
+	}
+
+	return resetToken, nil
+}
+
+// ResetPassword réinitialise le mot de passe de l'utilisateur en fonction d'un token valide.
+func (s *AuthService) ResetPassword(token, newPassword string) error {
+	ctx := context.Background()
+
+	// Valider le token en vérifiant sa présence dans Redis
+	tokenKey := fmt.Sprintf("password_reset:%s", token)
+	userID, err := config.RedisClient.Get(ctx, tokenKey).Result()
+	if err == redis.Nil {
+		// Token non trouvé ou expiré
+		return errors.ErrInvalidToken
+	} else if err != nil {
+		return errors.ErrInternal
+	}
+
+	// Récupérer l'utilisateur à partir de l'ID stocké dans Redis
+	var user models.User
+	result := database.CurrentDatabase.Where("id = ?", userID).First(&user)
+	if result.Error != nil {
+		return errors.ErrUserNotFound
+	}
+
+	// Hacher le nouveau mot de passe
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return errors.ErrInternal
+	}
+
+	// Mettre à jour le mot de passe dans la base de données
+	update := database.CurrentDatabase.Model(&user).Update("password", string(hashedPassword))
+	if update.Error != nil {
+		return errors.ErrInternal
+	}
+
+	// Supprimer le token de réinitialisation de Redis
+	config.RedisClient.Del(ctx, tokenKey)
+
+	return nil
+}

@@ -283,9 +283,27 @@ func (c *AuthController) ConfirmEmail(ctx echo.Context) error {
 		}
 	}
 
-	return ctx.JSON(http.StatusOK, map[string]string{
-		"message": "Email confirmé avec succès",
-	})
+	return ctx.HTML(http.StatusOK, `
+		<!DOCTYPE html>
+		<html lang="fr">
+		<head>
+			<meta charset="UTF-8">
+			<title>Email confirmé</title>
+			<style>
+				body { font-family: Arial, sans-serif; background-color: #d4edda; color: #007bff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+				.container { text-align: center; padding: 20px; background-color: #ffffff; border: 1px solid #c3e6cb; border-radius: 10px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+				button { margin-top: 10px; padding: 10px 20px; background-color: #c3e6cb; color: #007bff; border: none; border-radius: 5px; cursor: pointer; }
+				button:hover { background-color: #d4edda; }
+			</style>
+		</head>
+		<body>
+			<div class="container">
+				<h1>Félicitations</h1>
+				<p>Votre email a été confirmé avec succès ! Vous pouvez maintenant vous connecter à votre compte.</p>
+			</div>
+		</body>
+		</html>
+	`)
 }
 
 func (c *AuthController) ResendConfirmation(ctx echo.Context) error {
@@ -362,4 +380,245 @@ func (c *AuthController) RefreshToken(ctx echo.Context) error {
 	}
 
 	return ctx.JSON(http.StatusOK, tokens)
+}
+
+func (c *AuthController) ForgotPassword(ctx echo.Context) error {
+	// Analyse des données JSON de la requête
+	var request struct {
+		Email string `json:"email"`
+	}
+
+	if err := ctx.Bind(&request); err != nil {
+		return ctx.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid request format",
+		})
+	}
+
+	if request.Email == "" {
+		return ctx.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Email is required",
+		})
+	}
+
+	// Appeler le service pour générer le token de réinitialisation
+	resetToken, err := c.authService.GeneratePasswordResetToken(request.Email)
+	if err != nil {
+		switch {
+		case errors.Is(err, coreErrors.ErrUserNotFound):
+			return ctx.JSON(http.StatusNotFound, map[string]string{
+				"error": "User not found",
+			})
+		default:
+			ctx.Logger().Error(err)
+			return ctx.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "An error occurred while generating reset token",
+			})
+		}
+	}
+
+	// Créer un lien de réinitialisation
+	resetLink := fmt.Sprintf("https://invooce.online/auth/reset-password?token=%s", resetToken)
+	subject := "Réinitialisation de votre mot de passe"
+	body := fmt.Sprintf(`
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+        <meta charset="UTF-8">
+        <title>Réinitialisation de mot de passe</title>
+    </head>
+    <body>
+        <h2>Demande de réinitialisation de mot de passe</h2>
+        <p>Vous avez demandé la réinitialisation de votre mot de passe. Cliquez sur le lien ci-dessous pour définir un nouveau mot de passe :</p>
+        <a href="%s">Réinitialiser mon mot de passe</a>
+        <p>Si vous n'avez pas demandé cette réinitialisation, vous pouvez ignorer cet email.</p>
+    </body>
+    </html>
+    `, resetLink)
+
+	// Envoyer un email
+	if err := utils.SendEmail(request.Email, subject, body); err != nil {
+		ctx.Logger().Error("Erreur lors de l'envoi de l'email :", err)
+		return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": "Unable to send reset email"})
+	}
+
+	return ctx.JSON(http.StatusOK, map[string]string{
+		"message": "Email de réinitialisation envoyé avec succès",
+	})
+}
+
+func (c *AuthController) ResetPassword(ctx echo.Context) error {
+	// Récupérer les paramètres du formulaire
+	token := ctx.FormValue("token")
+	newPassword := ctx.FormValue("new_password")
+
+	// Vérifier si le token et le mot de passe sont présents
+	if token == "" || newPassword == "" {
+		return ctx.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Token and new password are required",
+		})
+	}
+
+	// Passer ces valeurs à votre service pour réinitialiser le mot de passe
+	err := c.authService.ResetPassword(token, newPassword)
+	if err != nil {
+		switch {
+		case errors.Is(err, coreErrors.ErrInvalidToken):
+			return ctx.JSON(http.StatusUnauthorized, map[string]string{
+				"error": "Invalid or expired token",
+			})
+		case errors.Is(err, coreErrors.ErrUserNotFound):
+			return ctx.JSON(http.StatusNotFound, map[string]string{
+				"error": "User not found",
+			})
+		default:
+			ctx.Logger().Error(err)
+			return ctx.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "An error occurred while resetting password",
+			})
+		}
+	}
+
+	return c.ResetPasswordSuccess(ctx)
+
+}
+
+func (c *AuthController) ResetPasswordForm(ctx echo.Context) error {
+	token := ctx.QueryParam("token")
+	if token == "" {
+		return ctx.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Token is required",
+		})
+	}
+
+	return ctx.HTML(http.StatusOK, fmt.Sprintf(`
+        <html>
+            <body>
+				<div class="container">
+					<h1>Réinitialisation du mot de passe</h1>
+					<form method="POST" action="/auth/reset-password">
+						<input type="hidden" name="token" value="%s" />
+						<label for="new_password">Nouveau mot de passe :</label>
+						<input type="password" name="new_password" id="new_password" required />
+						<button type="submit">Réinitialiser</button>
+					</form>
+				</div>
+            </body>
+			          <style>
+                body {
+                    font-family: 'Arial', sans-serif;
+                    background-color: #f2f2f2;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    margin: 0;
+                }
+                .container {
+                    background-color: #fff;
+                    border-radius: 8px;
+                    padding: 20px;
+                    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                    width: 100%;
+                    max-width: 400px;
+                }
+                h1 {
+                    text-align: center;
+                    font-size: 24px;
+                    margin-bottom: 20px;
+                }
+                input {
+                    width: 100%;
+                    padding: 10px;
+                    margin: 10px 0;
+                    border-radius: 4px;
+                    border: 1px solid #ddd;
+                    box-sizing: border-box;
+                }
+                button {
+                    width: 100%;
+                    padding: 10px;
+                    background-color: #007bff;
+                    border: none;
+                    border-radius: 4px;
+                    color: white;
+                    font-size: 16px;
+                    cursor: pointer;
+                }
+                button:hover {
+                    background-color: #0056b3;
+                }
+                .message {
+                    text-align: center;
+                    font-size: 16px;
+                    margin-top: 20px;
+                }
+            </style>
+        </html>
+    `, token))
+}
+
+func (c *AuthController) ResetPasswordSuccess(ctx echo.Context) error {
+	return ctx.HTML(http.StatusOK, `
+        <!DOCTYPE html>
+        <html lang="fr">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Réinitialisation du Mot de Passe - Succès</title>
+            <style>
+                body {
+                    font-family: 'Arial', sans-serif;
+                    background-color: #f2f2f2;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    margin: 0;
+                }
+                .container {
+                    background-color: #fff;
+                    border-radius: 8px;
+                    padding: 20px;
+                    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                    width: 100%;
+                    max-width: 400px;
+                }
+                h1 {
+                    text-align: center;
+                    font-size: 24px;
+                    margin-bottom: 20px;
+                }
+                p {
+                    text-align: center;
+                    font-size: 18px;
+                    color: #28a745;
+                    margin-top: 20px;
+                }
+                .button-container {
+                    text-align: center;
+                    margin-top: 30px;
+                }
+                .back-button {
+                    padding: 10px 20px;
+                    background-color: #007bff;
+                    border: none;
+                    border-radius: 4px;
+                    color: white;
+                    font-size: 16px;
+                    cursor: pointer;
+                    text-decoration: none;
+                }
+                .back-button:hover {
+                    background-color: #0056b3;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>Mot de Passe Réinitialisé</h1>
+                <p>Votre mot de passe a été réinitialisé avec succès !</p>
+            </div>
+        </body>
+        </html>
+    `)
 }
