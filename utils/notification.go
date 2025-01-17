@@ -6,11 +6,16 @@ import (
 	"firebase.google.com/go/messaging"
 	"fmt"
 	"google.golang.org/api/option"
+	"os"
 )
 
 // SendNotification envoie une notification push à un utilisateur
 func SendNotification(firebaseToken, title, body string) error {
 	fmt.Printf("Tentative d'envoi de notification - Token: %s\n", firebaseToken)
+	credentialsPath := os.Getenv("FIREBASE_CREDENTIALS_PATH")
+	if credentialsPath == "" {
+		credentialsPath = "firebase-service-account.json" // fallback pour le développement
+	}
 
 	// Créer la configuration Firebase
 	config := &firebase.Config{
@@ -18,7 +23,7 @@ func SendNotification(firebaseToken, title, body string) error {
 	}
 
 	// Initialiser l'app avec la configuration
-	app, err := firebase.NewApp(context.Background(), config, option.WithCredentialsFile("firebase-service-account.json"))
+	app, err := firebase.NewApp(context.Background(), config, option.WithCredentialsFile(credentialsPath))
 	if err != nil {
 		fmt.Printf("Erreur lors de l'initialisation de Firebase: %v\n", err)
 		return fmt.Errorf("Erreur d'initialisation de Firebase Admin: %v", err)
